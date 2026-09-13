@@ -1,6 +1,6 @@
 {
-  "name": "Dyad",
-  "description": "Local, open-source AI app builder with live preview, code editing, and multi-model support.",
+  "name": "Aether Studio",
+  "description": "Next-generation neural AI app builder and software foundry with autonomous agent orchestration, real-time code synthesis, and multi-platform compilation.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -119,7 +119,7 @@ export default function App() {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             SaaS Pulse Dashboard
           </h1>
-          <p className="text-xs text-neutral-400 mt-0.5">Live telemetry synced via Dyad local preview</p>
+          <p className="text-xs text-neutral-400 mt-0.5">Live telemetry synced via Aether neural sandbox</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 text-xs">

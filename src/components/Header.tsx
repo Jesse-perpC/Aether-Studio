@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Sparkles,
-  FolderOpen,
+  Zap,
+  FolderGit2,
   Plus,
   ChevronDown,
   Layers,
@@ -9,8 +9,8 @@ import {
   LayoutGrid,
   Settings as SettingsIcon,
   Download,
-  CheckCircle2,
   Rocket,
+  Activity,
 } from 'lucide-react';
 import { ViewTab, DyadApp } from '../types';
 
@@ -36,20 +36,30 @@ export const Header: React.FC<HeaderProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
-    <header className="h-13 bg-[#111215] border-b border-neutral-800/80 px-4 flex items-center justify-between select-none z-20 shrink-0">
+    <header className="h-14 bg-[#090b10] border-b border-cyan-500/20 px-4 flex items-center justify-between select-none z-30 shrink-0 shadow-lg shadow-black/40">
       {/* Brand & App Selector */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 pr-3 border-r border-neutral-800">
-          <div className="w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold text-sm shadow-inner">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
+        {/* Futuristic Brand Badge */}
+        <div className="flex items-center gap-2.5 pr-3 border-r border-neutral-800/80">
+          <div className="relative group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 via-blue-600/20 to-indigo-600/30 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-black text-sm shadow-[0_0_12px_rgba(6,182,212,0.25)]">
+              <Zap className="w-4 h-4 text-cyan-300" />
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-[#090b10] animate-pulse" />
           </div>
+
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-sm tracking-tight text-white">Dyad</span>
-              <span className="text-[10px] bg-neutral-800 text-neutral-400 font-mono px-1.5 py-0.2 rounded border border-neutral-700/60">
-                v1.15.0
+              <span className="font-extrabold text-sm tracking-wider text-white uppercase font-mono">
+                Aether
+              </span>
+              <span className="text-[9px] bg-cyan-950/80 text-cyan-300 font-mono px-1.5 py-0.5 rounded border border-cyan-500/30 tracking-widest font-semibold">
+                v2.4.0
               </span>
             </div>
+            <p className="text-[9px] text-neutral-500 font-mono tracking-tight hidden sm:block">
+              NEURAL FOUNDRY
+            </p>
           </div>
         </div>
 
@@ -57,17 +67,17 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800/80 border border-neutral-800 text-xs font-medium text-neutral-200 transition"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#0e1118] hover:bg-[#141824] border border-neutral-800 hover:border-cyan-500/30 text-xs font-medium text-neutral-200 transition"
           >
-            <FolderOpen className="w-3.5 h-3.5 text-neutral-400" />
-            <span className="max-w-[140px] truncate">{currentApp.name}</span>
-            <ChevronDown className="w-3 h-3 text-neutral-400 ml-1" />
+            <FolderGit2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="max-w-[130px] truncate font-medium">{currentApp.name}</span>
+            <ChevronDown className="w-3 h-3 text-neutral-400 ml-0.5" />
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-60 bg-[#16171b] border border-neutral-800 rounded-xl shadow-2xl py-1.5 z-50">
-              <div className="px-3 py-1 text-[10px] font-semibold tracking-wider text-neutral-500 uppercase">
-                Your Apps
+            <div className="absolute top-full left-0 mt-1.5 w-64 bg-[#0d1017] border border-cyan-500/30 rounded-xl shadow-2xl py-1.5 z-50 backdrop-blur-xl">
+              <div className="px-3 py-1 text-[10px] font-mono tracking-wider text-cyan-400/80 uppercase">
+                Active Projects
               </div>
               {apps.map((app) => (
                 <button
@@ -76,12 +86,14 @@ export const Header: React.FC<HeaderProps> = ({
                     onSelectApp(app);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-neutral-800/60 transition ${
-                    app.id === currentApp.id ? 'text-indigo-400 bg-indigo-500/10 font-medium' : 'text-neutral-300'
+                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-[#141926] transition ${
+                    app.id === currentApp.id
+                      ? 'text-cyan-300 bg-cyan-500/10 font-semibold border-l-2 border-cyan-400'
+                      : 'text-neutral-300'
                   }`}
                 >
                   <span className="truncate">{app.name}</span>
-                  <span className="text-[10px] text-neutral-500">{app.category}</span>
+                  <span className="text-[10px] font-mono text-neutral-500">{app.category}</span>
                 </button>
               ))}
               <div className="my-1 border-t border-neutral-800" />
@@ -90,82 +102,85 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsDropdownOpen(false);
                   onNewApp();
                 }}
-                className="w-full text-left px-3 py-1.5 text-xs text-indigo-400 hover:bg-indigo-500/10 flex items-center gap-2 font-medium transition"
+                className="w-full text-left px-3 py-1.5 text-xs text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-2 font-medium transition font-mono"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Create New App...
+                + INITIALIZE NEW PROJECT...
               </button>
             </div>
           )}
         </div>
 
-        {/* Runtime Status Pill */}
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
-          <CheckCircle2 className="w-3 h-3" />
-          <span>Dev Server Online (Port 3000)</span>
+        {/* Telemetry Status Indicator */}
+        <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-950/30 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+          <span>PORT 3000 • ONLINE</span>
+          <span className="text-neutral-600">|</span>
+          <Activity className="w-3 h-3 text-cyan-400" />
+          <span className="text-neutral-400">0.4ms</span>
         </div>
       </div>
 
-      {/* Main View Tabs */}
-      <nav className="flex items-center bg-neutral-900/90 border border-neutral-800/90 rounded-lg p-0.5 text-xs font-medium">
+      {/* Main View Tabs (Futuristic Cyber HUD) */}
+      <nav className="flex items-center bg-[#0d1017] border border-neutral-800 rounded-lg p-0.5 text-xs font-medium font-mono">
         <button
           onClick={() => onSelectTab('studio')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
             activeTab === 'studio'
-              ? 'bg-neutral-800 text-white shadow-xs'
+              ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-xs'
               : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          Studio
+          STUDIO
         </button>
 
         <button
           onClick={() => onSelectTab('code')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
             activeTab === 'code'
-              ? 'bg-neutral-800 text-white shadow-xs'
+              ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-xs'
               : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <Code2 className="w-3.5 h-3.5" />
-          Code & Diffs
+          SYNTAX & DIFFS
         </button>
 
         <button
           onClick={() => onSelectTab('templates')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
             activeTab === 'templates'
-              ? 'bg-neutral-800 text-white shadow-xs'
+              ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-xs'
               : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <LayoutGrid className="w-3.5 h-3.5" />
-          Templates
+          SCAFFOLDS
         </button>
 
         <button
           onClick={() => onSelectTab('releases')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
             activeTab === 'releases'
-              ? 'bg-neutral-800 text-white shadow-xs'
+              ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-xs'
               : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <Rocket className="w-3.5 h-3.5 text-indigo-400" />
-          Releases & CI
+          <Rocket className="w-3.5 h-3.5 text-cyan-400" />
+          MATRIX & CI
         </button>
 
         <button
           onClick={() => onSelectTab('settings')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition ${
             activeTab === 'settings'
-              ? 'bg-neutral-800 text-white shadow-xs'
+              ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-xs'
               : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <SettingsIcon className="w-3.5 h-3.5" />
-          Settings
+          CONFIG
         </button>
       </nav>
 
@@ -173,11 +188,11 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2">
         <button
           onClick={onExportApp}
-          title="Export current project files as JSON/ZIP"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs text-neutral-300 font-medium transition"
+          title="Export current project bundle"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0e1118] hover:bg-cyan-950/40 border border-neutral-800 hover:border-cyan-500/30 text-xs font-mono text-cyan-400 font-medium transition"
         >
           <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Export</span>
+          <span className="hidden sm:inline">EXPORT BUNDLE</span>
         </button>
       </div>
     </header>

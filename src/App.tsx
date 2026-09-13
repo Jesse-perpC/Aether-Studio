@@ -230,7 +230,7 @@ export default function App() {
       id: `app-${Date.now()}`,
       name,
       slug,
-      description: description || 'Built with Dyad local app builder',
+      description: description || 'Synthesized with Aether autonomous studio',
       category: 'Custom',
       icon: 'Boxes',
       updatedAt: 'Just now',
@@ -241,7 +241,7 @@ export default function App() {
           path: 'src/App.tsx',
           name: 'App.tsx',
           language: 'typescript',
-          content: `import React from 'react';\n\nexport default function App() {\n  return (\n    <div className="min-h-screen bg-neutral-950 text-white p-8">\n      <h1 className="text-2xl font-bold">${name}</h1>\n      <p className="text-neutral-400 mt-2">${description || 'Start building by asking Dyad in chat!'}</p>\n    </div>\n  );\n}`,
+          content: `import React from 'react';\n\nexport default function App() {\n  return (\n    <div className="min-h-screen bg-neutral-950 text-white p-8">\n      <h1 className="text-2xl font-bold">${name}</h1>\n      <p className="text-neutral-400 mt-2">${description || 'Start building by prompting Aether neural foundry!'}</p>\n    </div>\n  );\n}`,
         },
         {
           path: 'package.json',
@@ -271,13 +271,13 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentApp.slug}-dyad-project.json`;
+    a.download = `${currentApp.slug}-aether-project.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0c0d0e] text-neutral-100 font-sans select-none">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#090b10] text-neutral-100 font-sans select-none">
       {/* Top Application Header */}
       <Header
         currentApp={currentApp}

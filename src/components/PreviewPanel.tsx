@@ -43,7 +43,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ currentApp }) => {
 
   // Interactive state for Markdown Preview
   const [notesContent, setNotesContent] = useState(
-    `# Engineering Sprint 14 Notes\n\n- [x] Initialized Dyad local AI environment\n- [x] Verified port 3000 container mapping\n- [ ] Deploy client-side SPA bundle\n\n*Built with Dyad local app studio.*`
+    `# Engineering Sprint 14 Notes\n\n- [x] Initialized Aether neural local AI engine\n- [x] Verified port 3000 container mapping\n- [ ] Deploy client-side SPA bundle\n\n*Built with Aether autonomous software foundry.*`
   );
 
   const handleRefresh = () => {
@@ -75,10 +75,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ currentApp }) => {
 
   const logs = [
     { time: '10:14:02', level: 'info', message: '[vite] connecting...' },
-    { time: '10:14:03', level: 'info', message: '[vite] connected.' },
+    { time: '10:14:03', level: 'info', message: '[vite] connected to neural runtime.' },
     { time: '10:14:40', level: 'info', message: '[vite] hmr update /src/App.tsx' },
-    { time: '10:15:02', level: 'info', message: 'GET /api/metrics - 200 OK (14ms)' },
-    { time: '10:15:10', level: 'info', message: '[dyad] active preview synchronized with code' },
+    { time: '10:15:02', level: 'info', message: 'GET /api/telemetry - 200 OK (0.4ms)' },
+    { time: '10:15:10', level: 'info', message: '[aether-engine] sandbox preview synchronized' },
   ];
 
   const getViewportClass = () => {
@@ -129,9 +129,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ currentApp }) => {
         </div>
 
         {/* Mock Address Bar */}
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-neutral-900/90 border border-neutral-800 rounded-md text-[11px] text-neutral-400 font-mono max-w-sm w-full mx-4 truncate">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-[#090b10] border border-cyan-500/20 rounded-md text-[11px] text-cyan-300 font-mono max-w-sm w-full mx-4 truncate shadow-inner">
           <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
-          <span className="truncate">http://localhost:5173/{currentApp.slug}</span>
+          <span className="truncate">aether://sandbox.local:3000/{currentApp.slug}</span>
         </div>
 
         {/* Controls */}
