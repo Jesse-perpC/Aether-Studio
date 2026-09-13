@@ -51,8 +51,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: v24.13.1
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install npm 11.8.0
         run: npm install -g npm@11.8.0
@@ -62,7 +60,8 @@ jobs:
           if [ -f package-lock.json ]; then
             npm ci
           else
-            npm install
+            npm install --ignore-scripts
+            npm rebuild dugite || true
           fi
         shell: bash
         env:

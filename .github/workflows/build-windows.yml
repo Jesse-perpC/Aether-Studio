@@ -40,25 +40,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: v24.13.1
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install npm 11.8.0
         run: npm install -g npm@11.8.0
 
       - name: Install dependencies
+        shell: powershell
         run: |
           if (Test-Path package-lock.json) {
             npm ci
           } else {
-            npm install
+            npm install --ignore-scripts
+            npm rebuild dugite
           }
         env:
           # Required for @vscode/ripgrep to download binaries without hitting GitHub API rate limits
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Azure Trusted Signing (if secrets present)
-        if: env.HAS_AZURE_SECRETS == 'true'
+        if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_CLIENT_SECRET != '' }}
         shell: powershell
         run: |
           $installDir = "$env:RUNNER_TEMP\TrustedSigning"
@@ -146,6 +146,7 @@ jobs:
       # -------------------------------------------------------------
       - name: Create Nightly Pre-Release on main
         if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event.inputs.create_release == 'true')
+        continue-on-error: true
         shell: powershell
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -153,20 +154,20 @@ jobs:
           $shortSha = "${{ github.sha }}".Substring(0, 7)
           $dateStr = Get-Date -Format "yyyy.MM.dd"
           $tag = "nightly-win-$dateStr-$shortSha"
-          $title = "Dyad Windows Nightly Build ($dateStr - $shortSha)"
+          $title = "Aether Studio Windows Build ($dateStr - $shortSha)"
 
           # Generate git changelog
-          $changelog = git log -n 10 --pretty=format:"* %s (%h)"
+          $changelog = git log -n 10 --pretty=format:"* %s (%h)" 2>$null
 
           $releaseNotes = @"
-          ## 🚀 Dyad Windows Desktop Build ($dateStr)
+          ## 🚀 Aether Studio Windows Desktop Build ($dateStr)
 
           **Commit:** ${{ github.sha }}
           **Branch:** ${{ github.ref_name }}
 
           ### 📦 Download Assets
-          - **Installer:** \`Dyad-Setup-x64.exe\` (Standard Windows Squirrel installer)
-          - **Portable:** \`Dyad-Windows-Portable-x64.zip\` (Extract & run, no installation needed)
+          - **Installer:** \`Aether-Setup-x64.exe\` (Standard Windows installer)
+          - **Portable:** \`Aether-Windows-Portable-x64.zip\` (Extract & run, no installation needed)
 
           ### 📝 Recent Changes
           $changelog
@@ -174,10 +175,10 @@ jobs:
 
           $releaseNotes | Out-File -FilePath release_notes.md -Encoding utf8
 
-          $assetFiles = Get-ChildItem -Path out/dist/* | ForEach-Object { $_.FullName }
-          if ($assetFiles.Count -gt 0) {
+          $assetFiles = Get-ChildItem -Path out/dist/* -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+          if ($assetFiles -and $assetFiles.Count -gt 0) {
             Write-Host "Publishing release $tag with assets..."
-            gh release create $tag $assetFiles --title $title --notes-file release_notes.md --prerelease
+            gh release create $tag $assetFiles --title $title --notes-file release_notes.md --prerelease || Write-Warning "Could not publish release. Ensure workflow has write permissions."
           } else {
             Write-Host "No assets found in out/dist to attach."
           }
@@ -187,43 +188,48 @@ jobs:
       # -------------------------------------------------------------
       - name: Post PR Download Comment
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const shortSha = '${{ github.sha }}'.substring(0, 7);
-            const body = `### 🪟 Windows Desktop Build Ready!
+            try {
+              const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+              const shortSha = '${{ github.sha }}'.substring(0, 7);
+              const body = `### 🪟 Windows Desktop Build Ready!
 
-            A fresh Windows desktop build has been compiled for commit \`${shortSha}\`.
+              A fresh Windows desktop build has been compiled for commit \`${shortSha}\`.
 
-            - 📦 **Download Artifacts**: [View Artifacts on GitHub Actions](${runUrl})
-              - **Installer:** \`Dyad-Windows-x64-${{ github.sha }}\` (contains \`.exe\` installer and portable \`.zip\`)
-              - **Unpacked Portable:** \`Dyad-Windows-Unpacked-${{ github.sha }}\`
+              - 📦 **Download Artifacts**: [View Artifacts on GitHub Actions](${runUrl})
+                - **Installer:** \`Dyad-Windows-x64-${{ github.sha }}\` (contains \`.exe\` installer and portable \`.zip\`)
+                - **Unpacked Portable:** \`Dyad-Windows-Unpacked-${{ github.sha }}\`
 
-            > *Note: Download the artifact zip from the workflow summary page above and extract the installer.*`;
+              > *Note: Download the artifact zip from the workflow summary page above and extract the installer.*`;
 
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && comment.body.includes('Windows Desktop Build Ready!')
-            );
-
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: body
-              });
-            } else {
-              await github.rest.issues.createComment({
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: body
               });
+
+              const botComment = comments.find(comment => 
+                comment.user.type === 'Bot' && comment.body.includes('Windows Desktop Build Ready!')
+              );
+
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: body
+                });
+              }
+            } catch (err) {
+              console.log('Skipping PR comment (e.g. read-only token on fork PR):', err.message);
             }
