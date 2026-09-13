@@ -1,0 +1,229 @@
+name: Build Windows Desktop App
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish a pre-release on GitHub'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: build-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-windows:
+    name: Build Windows Desktop App
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: v24.13.1
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm 11.8.0
+        run: npm install -g npm@11.8.0
+
+      - name: Install dependencies
+        run: |
+          if (Test-Path package-lock.json) {
+            npm ci
+          } else {
+            npm install
+          }
+        env:
+          # Required for @vscode/ripgrep to download binaries without hitting GitHub API rate limits
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Azure Trusted Signing (if secrets present)
+        if: env.HAS_AZURE_SECRETS == 'true'
+        shell: powershell
+        run: |
+          $installDir = "$env:RUNNER_TEMP\TrustedSigning"
+          nuget install Microsoft.Trusted.Signing.Client -Version 1.0.95 -OutputDirectory $installDir -Source https://api.nuget.org/v3/index.json
+
+          $dllPath = Get-ChildItem -Path $installDir -Recurse -Filter "Azure.CodeSigning.Dlib.dll" |
+            Where-Object { $_.FullName -match "x64" } |
+            Select-Object -First 1 -ExpandProperty FullName
+
+          if ($dllPath) {
+            Write-Host "Found Azure Signing DLL at: $dllPath"
+            "AZURE_CODE_SIGNING_DLIB=$dllPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            "WINDOWS_SIGN=true" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+
+          $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin"
+          $signTool = Get-ChildItem -Path $sdkPath -Recurse -Filter "signtool.exe" |
+            Where-Object { $_.FullName -match "\\x64\\" } |
+            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending |
+            Select-Object -First 1
+
+          if ($signTool) {
+            Write-Host "Found SignTool at: $($signTool.FullName)"
+            "SIGNTOOL_PATH=$($signTool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+
+          @'
+          {
+            "Endpoint": "https://eus.codesigning.azure.net/",
+            "CodeSigningAccountName": "dyad",
+            "CertificateProfileName": "dyad-tech"
+          }
+          '@ | Out-File -Encoding utf8 signing-metadata.json
+
+          echo "AZURE_METADATA_JSON=$PWD\signing-metadata.json" >> $env:GITHUB_ENV
+        env:
+          HAS_AZURE_SECRETS: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_CLIENT_SECRET != '' }}
+
+      - name: Build Windows Desktop App
+        run: npx electron-forge make --platform win32 --arch x64
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Package Portable Zip
+        shell: powershell
+        run: |
+          if (Test-Path out/dyad-win32-x64) {
+            New-Item -ItemType Directory -Force -Path out/dist
+            Compress-Archive -Path out/dyad-win32-x64/* -DestinationPath out/dist/Dyad-Windows-Portable-x64.zip -Force
+            Write-Host "Created out/dist/Dyad-Windows-Portable-x64.zip"
+          }
+          if (Test-Path out/make/squirrel.windows/x64) {
+            Copy-Item -Path out/make/squirrel.windows/x64/*.exe -Destination out/dist/ -ErrorAction SilentlyContinue
+            Copy-Item -Path out/make/squirrel.windows/x64/*.nupkg -Destination out/dist/ -ErrorAction SilentlyContinue
+            Copy-Item -Path out/make/squirrel.windows/x64/RELEASES -Destination out/dist/ -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload Windows Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dyad-Windows-x64-${{ github.sha }}
+          path: |
+            out/dist/*
+            out/make/squirrel.windows/x64/*.exe
+            out/make/squirrel.windows/x64/*.nupkg
+            out/make/squirrel.windows/x64/RELEASES
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Unpacked Windows Portable App
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dyad-Windows-Unpacked-${{ github.sha }}
+          path: out/dyad-win32-x64/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # -------------------------------------------------------------
+      # 1. Automated GitHub Pre-Release / Nightly on push to main
+      # -------------------------------------------------------------
+      - name: Create Nightly Pre-Release on main
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event.inputs.create_release == 'true')
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $shortSha = "${{ github.sha }}".Substring(0, 7)
+          $dateStr = Get-Date -Format "yyyy.MM.dd"
+          $tag = "nightly-win-$dateStr-$shortSha"
+          $title = "Dyad Windows Nightly Build ($dateStr - $shortSha)"
+
+          # Generate git changelog
+          $changelog = git log -n 10 --pretty=format:"* %s (%h)"
+
+          $releaseNotes = @"
+          ## 🚀 Dyad Windows Desktop Build ($dateStr)
+
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+
+          ### 📦 Download Assets
+          - **Installer:** \`Dyad-Setup-x64.exe\` (Standard Windows Squirrel installer)
+          - **Portable:** \`Dyad-Windows-Portable-x64.zip\` (Extract & run, no installation needed)
+
+          ### 📝 Recent Changes
+          $changelog
+          "@
+
+          $releaseNotes | Out-File -FilePath release_notes.md -Encoding utf8
+
+          $assetFiles = Get-ChildItem -Path out/dist/* | ForEach-Object { $_.FullName }
+          if ($assetFiles.Count -gt 0) {
+            Write-Host "Publishing release $tag with assets..."
+            gh release create $tag $assetFiles --title $title --notes-file release_notes.md --prerelease
+          } else {
+            Write-Host "No assets found in out/dist to attach."
+          }
+
+      # -------------------------------------------------------------
+      # 2. PR Download Bot Comment
+      # -------------------------------------------------------------
+      - name: Post PR Download Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const shortSha = '${{ github.sha }}'.substring(0, 7);
+            const body = `### 🪟 Windows Desktop Build Ready!
+
+            A fresh Windows desktop build has been compiled for commit \`${shortSha}\`.
+
+            - 📦 **Download Artifacts**: [View Artifacts on GitHub Actions](${runUrl})
+              - **Installer:** \`Dyad-Windows-x64-${{ github.sha }}\` (contains \`.exe\` installer and portable \`.zip\`)
+              - **Unpacked Portable:** \`Dyad-Windows-Unpacked-${{ github.sha }}\`
+
+            > *Note: Download the artifact zip from the workflow summary page above and extract the installer.*`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('Windows Desktop Build Ready!')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }

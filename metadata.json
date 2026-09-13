@@ -1,0 +1,6 @@
+{
+  "name": "Dyad",
+  "description": "Local, open-source AI app builder with live preview, code editing, and multi-model support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

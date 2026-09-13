@@ -1,0 +1,100 @@
+name: Multi-Platform Desktop Matrix
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish as a GitHub Release'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: desktop-matrix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Desktop (${{ matrix.os.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: windows
+            runner: windows-2022
+            make_cmd: npx electron-forge make --platform win32 --arch x64
+          - name: macos
+            runner: macos-latest
+            make_cmd: npx electron-forge make --platform darwin
+          - name: linux
+            runner: ubuntu-22.04
+            make_cmd: npx electron-forge make --platform linux --arch x64
+
+    runs-on: ${{ matrix.os.runner }}
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: v24.13.1
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm 11.8.0
+        run: npm install -g npm@11.8.0
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Linux prerequisites for native rebuilds
+      - name: Setup Linux clang
+        if: matrix.os.name == 'linux'
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y fakeroot dpkg rpm || true
+
+      # Build with Electron Forge
+      - name: Build Desktop Distributables
+        run: ${{ matrix.os.make_cmd }}
+        shell: bash
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare distribution bundle
+        shell: bash
+        run: |
+          mkdir -p out/dist
+          cp -r out/make/* out/dist/ 2>/dev/null || true
+
+      - name: Upload Platform Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dyad-${{ matrix.os.name }}-${{ github.sha }}
+          path: |
+            out/make/
+            out/dist/
+          if-no-files-found: warn
+          retention-days: 14
