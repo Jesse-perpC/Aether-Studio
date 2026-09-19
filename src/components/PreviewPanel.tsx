@@ -1,431 +1,276 @@
-import React, { useState } from 'react';
-import {
-  Monitor,
-  Tablet,
-  Smartphone,
-  RotateCw,
-  Lock,
-  Terminal,
-  AlertCircle,
-  Eye,
-  CheckCircle2,
-  TrendingUp,
-  Users,
-  CreditCard,
-  DollarSign,
-  Download,
-  Plus,
-  Trash2,
-} from 'lucide-react';
-import { DeviceViewport, PreviewTab, DyadApp } from '../types';
+import React, { useState, useEffect } from "react";
+import { 
+  RotateCw, 
+  Smartphone, 
+  Tablet, 
+  Monitor, 
+  Terminal, 
+  Activity, 
+  ShieldCheck, 
+  ArrowUpRight, 
+  Wallet
+} from "lucide-react";
+import { AppRecord, DeviceMode } from "../types";
 
 interface PreviewPanelProps {
-  currentApp: DyadApp;
-  onOpenExternal?: () => void;
+  app: AppRecord;
 }
 
-export const PreviewPanel: React.FC<PreviewPanelProps> = ({ currentApp }) => {
-  const [viewport, setViewport] = useState<DeviceViewport>('desktop');
-  const [activeBottomTab, setActiveBottomTab] = useState<PreviewTab>('preview');
+export const PreviewPanel: React.FC<PreviewPanelProps> = ({ app }) => {
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Interactive state for SaaS Pulse Preview
-  const [saasRange, setSaasRange] = useState<'7d' | '30d' | '90d'>('30d');
-  const [exportNotice, setExportNotice] = useState<string | null>(null);
-
-  // Interactive state for Kanban Preview
-  const [kanbanTasks, setKanbanTasks] = useState([
-    { id: 1, title: 'Implement Stripe Checkout webhook', col: 'todo', priority: 'high', tag: 'Backend' },
-    { id: 2, title: 'Audit contrast ratios for WCAG AA', col: 'in_progress', priority: 'medium', tag: 'Design' },
-    { id: 3, title: 'Setup SQLite local persistent cache', col: 'done', priority: 'low', tag: 'Infra' },
+  const [showConsole, setShowConsole] = useState(false);
+  const [balance, setBalance] = useState(24850.40);
+  const [gasGwei, setGasGwei] = useState(18);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [logs, setLogs] = useState<string[]>([
+    `[Vite] dev server running at: http://localhost:${app.port}/`,
+    `[HMR] connected to websocket port ${app.port}`,
+    `[Aether Sandbox] Runtime v1.15 initialized in 18ms`,
   ]);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
 
-  // Interactive state for Markdown Preview
-  const [notesContent, setNotesContent] = useState(
-    `# Engineering Sprint 14 Notes\n\n- [x] Initialized Aether neural local AI engine\n- [x] Verified port 3000 container mapping\n- [ ] Deploy client-side SPA bundle\n\n*Built with Aether autonomous software foundry.*`
-  );
+  // Simulate gas fluctuation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGasGwei((prev) => Math.max(12, Math.min(45, prev + (Math.random() > 0.5 ? 1 : -1))));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 500);
+    setLogs((prev) => [...prev, `[HMR] forced page reload at ${new Date().toLocaleTimeString()}`]);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
   };
 
-  const handleExport = () => {
-    setExportNotice('Exported saas-pulse-report.csv to downloads');
-    setTimeout(() => setExportNotice(null), 3000);
-  };
+  const [assets, setAssets] = useState([
+    { symbol: "ETH", name: "Ethereum", price: 3420.50, change: "+4.12%", holding: 4.5 },
+    { symbol: "BTC", name: "Bitcoin", price: 88400.00, change: "+2.85%", holding: 0.12 },
+    { symbol: "SOL", name: "Solana", price: 194.20, change: "+9.34%", holding: 22.0 },
+    { symbol: "AETH", name: "Aether Protocol", price: 42.10, change: "+18.60%", holding: 150.0 },
+  ]);
 
-  const handleAddTask = () => {
-    if (!newTaskTitle.trim()) return;
-    setKanbanTasks([
-      ...kanbanTasks,
-      { id: Date.now(), title: newTaskTitle.trim(), col: 'todo', priority: 'medium', tag: 'Feature' },
-    ]);
-    setNewTaskTitle('');
-  };
-
-  const moveTask = (id: number, nextCol: string) => {
-    setKanbanTasks(kanbanTasks.map((t) => (t.id === id ? { ...t, col: nextCol } : t)));
-  };
-
-  const deleteTask = (id: number) => {
-    setKanbanTasks(kanbanTasks.filter((t) => t.id !== id));
-  };
-
-  const logs = [
-    { time: '10:14:02', level: 'info', message: '[vite] connecting...' },
-    { time: '10:14:03', level: 'info', message: '[vite] connected to neural runtime.' },
-    { time: '10:14:40', level: 'info', message: '[vite] hmr update /src/App.tsx' },
-    { time: '10:15:02', level: 'info', message: 'GET /api/telemetry - 200 OK (0.4ms)' },
-    { time: '10:15:10', level: 'info', message: '[aether-engine] sandbox preview synchronized' },
-  ];
-
-  const getViewportClass = () => {
-    switch (viewport) {
-      case 'mobile':
-        return 'w-[375px] h-[667px] shadow-2xl rounded-2xl border-4 border-neutral-800';
-      case 'tablet':
-        return 'w-[768px] h-full shadow-xl rounded-xl border border-neutral-800';
-      case 'desktop':
-      default:
-        return 'w-full h-full';
+  const handleTradeSimulation = (symbol: string) => {
+    const asset = assets.find((a) => a.symbol === symbol);
+    if (asset) {
+      setBalance((b) => +(b + asset.price).toFixed(2));
     }
+    setAssets((prev) =>
+      prev.map((a) => (a.symbol === symbol ? { ...a, holding: +(a.holding + 1).toFixed(2) } : a))
+    );
+    setLogs((prev) => [...prev, `[Contract] Executed mint/swap order for +1 ${symbol}`]);
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0e0f12] overflow-hidden">
-      {/* Top Preview Bar */}
-      <div className="h-10 px-3 border-b border-neutral-800/80 bg-[#121317] flex items-center justify-between text-xs shrink-0 select-none">
-        {/* Device Viewport Selector */}
-        <div className="flex items-center bg-neutral-900 border border-neutral-800 rounded-lg p-0.5">
+    <div className="flex flex-col h-full bg-[#0a0c12] select-none">
+      {/* Sandbox Header & Address Bar */}
+      <div className="h-11 border-b border-neutral-800 bg-[#0d0f17] px-2.5 sm:px-3 flex items-center justify-between text-xs select-none overflow-x-auto no-scrollbar gap-2 shrink-0">
+        {/* Device Switcher */}
+        <div className="flex items-center bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 shrink-0">
           <button
-            onClick={() => setViewport('desktop')}
-            title="Desktop view (100%)"
-            className={`p-1 rounded transition ${
-              viewport === 'desktop' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            onClick={() => setDeviceMode("desktop")}
+            className={`p-1.5 rounded transition-colors cursor-pointer ${
+              deviceMode === "desktop" ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
             }`}
+            title="Desktop View (100%)"
           >
             <Monitor className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => setViewport('tablet')}
-            title="Tablet view (768px)"
-            className={`p-1 rounded transition ${
-              viewport === 'tablet' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            onClick={() => setDeviceMode("tablet")}
+            className={`p-1.5 rounded transition-colors cursor-pointer ${
+              deviceMode === "tablet" ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
             }`}
+            title="Tablet View (768px)"
           >
             <Tablet className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => setViewport('mobile')}
-            title="Mobile view (375px)"
-            className={`p-1 rounded transition ${
-              viewport === 'mobile' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            onClick={() => setDeviceMode("mobile")}
+            className={`p-1.5 rounded transition-colors cursor-pointer ${
+              deviceMode === "mobile" ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
             }`}
+            title="Mobile View (375px)"
           >
             <Smartphone className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Mock Address Bar */}
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-[#090b10] border border-cyan-500/20 rounded-md text-[11px] text-cyan-300 font-mono max-w-sm w-full mx-4 truncate shadow-inner">
-          <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
-          <span className="truncate">aether://sandbox.local:3000/{currentApp.slug}</span>
+        {/* URL Bar */}
+        <div className="flex-1 max-w-md mx-1 sm:mx-3 min-w-[110px]">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-neutral-900/90 border border-neutral-800 px-2 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-mono text-neutral-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+            <span className="text-neutral-400 truncate">http://localhost:{app.port}/</span>
+          </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-1.5">
+        {/* Action Controls */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={handleRefresh}
-            title="Reload Preview"
-            className={`p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition ${
-              isRefreshing ? 'animate-spin text-indigo-400' : ''
+            className={`p-1.5 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer ${
+              isRefreshing ? "animate-spin text-cyan-400" : ""
             }`}
+            title="Reload Sandbox"
           >
             <RotateCw className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setShowConsole(!showConsole)}
+            className={`p-1.5 rounded hover:bg-neutral-800 transition-colors cursor-pointer ${
+              showConsole ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
+            }`}
+            title="Toggle Embedded Logs Console"
+          >
+            <Terminal className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Main Preview Sandbox Canvas */}
-      <div className="flex-1 overflow-auto bg-neutral-950 p-4 flex items-center justify-center relative">
-        <div className={`transition-all duration-200 bg-neutral-950 overflow-auto flex flex-col ${getViewportClass()}`}>
-          {/* RENDER ACTIVE APP PREVIEW */}
-          {currentApp.id === 'app-analytics' ? (
-            <div className="min-h-full p-5 bg-neutral-950 text-neutral-100 font-sans">
-              {/* Export Toast Banner */}
-              {exportNotice && (
-                <div className="mb-4 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 flex items-center gap-2 animate-in fade-in">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{exportNotice}</span>
-                </div>
-              )}
+      {/* Sandbox Screen Canvas */}
+      <div className="flex-1 overflow-auto bg-[#07080c] p-2 sm:p-4 flex flex-col items-center justify-start min-h-0">
+        <div
+          className={`min-h-[420px] transition-all duration-300 shadow-2xl rounded-xl border border-neutral-800 overflow-hidden flex flex-col bg-[#090b10] ${
+            deviceMode === "desktop"
+              ? "w-full min-w-[300px] flex-1"
+              : deviceMode === "tablet"
+              ? "w-[768px] max-w-none flex-1 shrink-0"
+              : "w-[375px] max-w-full flex-1 shrink-0"
+          }`}
+        >
+          {/* Simulated App Top Bar */}
+          <div className="p-3 sm:p-4 border-b border-neutral-800/80 bg-[#0d0f17]/90 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0">
+                ⚡
+              </div>
+              <div>
+                <h1 className="font-semibold text-xs text-neutral-100">{app.name}</h1>
+                <p className="text-[10px] text-neutral-400">Sandbox Port: {app.port}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <span className="flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                {gasGwei} Gwei
+              </span>
+              <button
+                onClick={() => setWalletConnected(!walletConnected)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                  walletConnected
+                    ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                    : "bg-cyan-500 hover:bg-cyan-400 text-neutral-950"
+                }`}
+              >
+                <Wallet className="w-3 h-3" />
+                {walletConnected ? "0x7F...3B9" : "Connect Wallet"}
+              </button>
+            </div>
+          </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-neutral-800">
-                <div>
-                  <h1 className="text-base font-semibold text-white flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    SaaS Pulse Analytics
-                  </h1>
-                  <p className="text-xs text-neutral-400">Live preview environment</p>
+          {/* Simulated Live Content Body */}
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0">
+            {/* Top Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+              <div className="bg-neutral-900/90 border border-neutral-800/90 rounded-xl p-3">
+                <p className="text-[11px] text-neutral-400">Portfolio Value</p>
+                <p className="text-xl font-bold text-neutral-100 mt-0.5 font-mono">
+                  ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] text-emerald-400 mt-1">
+                  <ArrowUpRight className="w-3 h-3" /> +14.2% (24h)
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 text-xs">
-                    {(['7d', '30d', '90d'] as const).map((r) => (
+              <div className="bg-neutral-900/90 border border-neutral-800/90 rounded-xl p-3">
+                <p className="text-[11px] text-neutral-400">Yield Vaults</p>
+                <p className="text-xl font-bold text-neutral-100 mt-0.5 font-mono">5 Active</p>
+                <div className="flex items-center gap-1 text-[10px] text-cyan-400 mt-1">
+                  <Activity className="w-3 h-3" /> APY 8.2% avg
+                </div>
+              </div>
+
+              <div className="bg-neutral-900/90 border border-neutral-800/90 rounded-xl p-3 sm:col-span-2 lg:col-span-1">
+                <p className="text-[11px] text-neutral-400">Security Audit</p>
+                <p className="text-xl font-bold text-emerald-400 mt-0.5 font-mono">PASSED</p>
+                <div className="flex items-center gap-1 text-[10px] text-neutral-400 mt-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Bytecode verified
+                </div>
+              </div>
+            </div>
+
+            {/* Asset Table */}
+            <div className="bg-neutral-900/90 border border-neutral-800/90 rounded-xl p-3 sm:p-3.5">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-1">
+                <h2 className="text-xs font-semibold text-neutral-200">Tracked Assets</h2>
+                <span className="text-[10px] text-neutral-400">Click +1 to execute test trade</span>
+              </div>
+              <div className="space-y-2">
+                {assets.map((asset) => (
+                  <div
+                    key={asset.symbol}
+                    className="p-2 sm:p-2.5 rounded-lg bg-neutral-950/60 border border-neutral-800/60 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-neutral-800 flex items-center justify-center font-bold text-xs text-cyan-400 font-mono shrink-0">
+                        {asset.symbol.slice(0, 3)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-neutral-200 truncate">{asset.name}</p>
+                        <p className="text-[10px] text-neutral-400 font-mono truncate">
+                          Holding: {asset.holding} {asset.symbol}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-neutral-100 font-mono">
+                          ${asset.price.toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-emerald-400 font-mono">{asset.change}</p>
+                      </div>
                       <button
-                        key={r}
-                        onClick={() => setSaasRange(r)}
-                        className={`px-2.5 py-1 rounded-md transition ${
-                          saasRange === r ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-400'
-                        }`}
+                        onClick={() => handleTradeSimulation(asset.symbol)}
+                        className="text-[10px] bg-cyan-950 hover:bg-cyan-900 text-cyan-300 px-2 py-1 rounded border border-cyan-800 transition-colors font-mono cursor-pointer whitespace-nowrap"
                       >
-                        {r}
+                        +1 {asset.symbol}
                       </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleExport}
-                    className="flex items-center gap-1 px-2.5 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg shadow-xs transition"
-                  >
-                    <Download className="w-3 h-3" />
-                    Export
-                  </button>
-                </div>
-              </div>
-
-              {/* KPI Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-                {[
-                  {
-                    title: 'MRR',
-                    val: saasRange === '7d' ? '$14,475' : saasRange === '90d' ? '$135,100' : '$48,250',
-                    change: '+14.2%',
-                    icon: DollarSign,
-                    color: 'text-emerald-400',
-                  },
-                  {
-                    title: 'Active Users',
-                    val: saasRange === '7d' ? '426' : saasRange === '90d' ? '3,976' : '1,420',
-                    change: '+8.1%',
-                    icon: Users,
-                    color: 'text-indigo-400',
-                  },
-                  { title: 'ARPU', val: '$34.00', change: '+2.4%', icon: CreditCard, color: 'text-sky-400' },
-                  { title: 'Churn', val: '1.8%', change: '-0.4%', icon: TrendingUp, color: 'text-emerald-400' },
-                ].map((item, idx) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={idx} className="bg-neutral-900/60 border border-neutral-800/80 p-3.5 rounded-xl">
-                      <div className="flex items-center justify-between text-neutral-400 mb-1">
-                        <span className="text-[11px] font-medium">{item.title}</span>
-                        <Icon className={`w-3.5 h-3.5 ${item.color}`} />
-                      </div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-lg font-bold text-white tracking-tight">{item.val}</span>
-                        <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/30">
-                          {item.change}
-                        </span>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Chart & Activities */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-                <div className="lg:col-span-2 bg-neutral-900/60 border border-neutral-800/80 p-4 rounded-xl">
-                  <h3 className="text-xs font-semibold text-white mb-1">Revenue Trajectory ({saasRange})</h3>
-                  <p className="text-[11px] text-neutral-400 mb-4">Quarterly recurring subscription volume</p>
-                  <div className="h-32 flex items-end gap-2 pt-2">
-                    {[38, 52, 60, 48, 72, 85, 68, 92, 108, 98, 118, 134].map((v, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1 group justify-end h-full">
-                        <div
-                          style={{ height: `${(v / 134) * 100}%` }}
-                          className="w-full bg-indigo-600/80 group-hover:bg-indigo-400 rounded-t transition-all"
-                        />
-                        <span className="text-[9px] text-neutral-500 font-mono">M{i + 1}</span>
-                      </div>
-                    ))}
                   </div>
-                </div>
-
-                <div className="bg-neutral-900/60 border border-neutral-800/80 p-4 rounded-xl">
-                  <h3 className="text-xs font-semibold text-white mb-3">Live Subscription Feed</h3>
-                  <div className="space-y-2.5 text-xs">
-                    {[
-                      { name: 'Sarah Jenkins', plan: 'Enterprise', amount: '+$499/mo' },
-                      { name: 'Alex Rivkin', plan: 'Pro Annual', amount: '+$240/yr' },
-                      { name: 'Elena Costa', plan: 'Pro Monthly', amount: '+$29/mo' },
-                    ].map((row, i) => (
-                      <div key={i} className="flex items-center justify-between pb-2 border-b border-neutral-800/50 last:border-0">
-                        <div>
-                          <p className="font-medium text-neutral-200 text-[11px]">{row.name}</p>
-                          <p className="text-[10px] text-neutral-500">{row.plan}</p>
-                        </div>
-                        <span className="font-mono text-emerald-400 text-xs font-medium">{row.amount}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          ) : currentApp.id === 'app-kanban' ? (
-            <div className="min-h-full p-5 bg-neutral-950 text-neutral-100 font-sans">
-              <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
-                <div>
-                  <h1 className="text-base font-bold text-white">FlowBoard Kanban</h1>
-                  <p className="text-xs text-neutral-400">Interactive sprint planning board</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="New task..."
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                    className="px-2.5 py-1 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-white placeholder-neutral-500"
-                  />
-                  <button
-                    onClick={handleAddTask}
-                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> Add
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                {[
-                  { id: 'todo', label: 'To Do', color: 'border-amber-500/40' },
-                  { id: 'in_progress', label: 'In Progress', color: 'border-indigo-500/40' },
-                  { id: 'done', label: 'Done', color: 'border-emerald-500/40' },
-                ].map((col) => {
-                  const tasksInCol = kanbanTasks.filter((t) => t.col === col.id);
-                  return (
-                    <div key={col.id} className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-3 flex flex-col">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800">
-                        <span className="text-xs font-semibold text-white">{col.label}</span>
-                        <span className="text-[10px] bg-neutral-800 text-neutral-400 px-1.5 rounded-full font-mono">
-                          {tasksInCol.length}
-                        </span>
-                      </div>
-                      <div className="space-y-2 flex-1">
-                        {tasksInCol.map((task) => (
-                          <div key={task.id} className="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs space-y-1.5 shadow-xs">
-                            <div className="flex items-start justify-between gap-1">
-                              <span className="font-medium text-neutral-200">{task.title}</span>
-                              <button onClick={() => deleteTask(task.id)} className="text-neutral-500 hover:text-rose-400">
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-neutral-400">
-                              <span className="bg-neutral-800 px-1.5 py-0.2 rounded font-mono">{task.tag}</span>
-                              <div className="flex gap-1">
-                                {col.id !== 'todo' && (
-                                  <button onClick={() => moveTask(task.id, 'todo')} className="hover:text-indigo-300">
-                                    ← Todo
-                                  </button>
-                                )}
-                                {col.id !== 'in_progress' && (
-                                  <button onClick={() => moveTask(task.id, 'in_progress')} className="hover:text-indigo-300">
-                                    Work
-                                  </button>
-                                )}
-                                {col.id !== 'done' && (
-                                  <button onClick={() => moveTask(task.id, 'done')} className="hover:text-emerald-300">
-                                    Done →
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="min-h-full p-5 bg-neutral-950 text-neutral-100 font-sans flex flex-col">
-              <div className="pb-3 border-b border-neutral-800 flex items-center justify-between">
-                <h1 className="text-base font-bold text-white">{currentApp.name}</h1>
-                <span className="text-xs text-neutral-400 font-mono">
-                  {notesContent.split(/\s+/).filter(Boolean).length} words
-                </span>
-              </div>
-              <textarea
-                value={notesContent}
-                onChange={(e) => setNotesContent(e.target.value)}
-                className="flex-1 w-full mt-4 bg-neutral-900/60 border border-neutral-800 rounded-xl p-4 text-xs font-mono text-neutral-200 resize-none focus:outline-hidden"
-              />
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Bottom Diagnostics / Tabs Bar */}
-      <div className="border-t border-neutral-800/80 bg-[#121316] text-xs shrink-0">
-        <div className="flex items-center justify-between px-3 h-8">
-          <div className="flex items-center gap-2">
+      {/* Embedded Console Drawer */}
+      {showConsole && (
+        <div className="h-40 border-t border-neutral-800 bg-[#090b10] p-3 flex flex-col font-mono text-[11px]">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800/80 text-neutral-400">
+            <span className="flex items-center gap-1.5 text-cyan-400 font-semibold text-xs">
+              <Terminal className="w-3.5 h-3.5" /> Sandbox Terminal & HMR Logs
+            </span>
             <button
-              onClick={() => setActiveBottomTab('preview')}
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium transition ${
-                activeBottomTab === 'preview' ? 'text-indigo-400 bg-neutral-800' : 'text-neutral-400 hover:text-white'
-              }`}
+              onClick={() => setLogs([])}
+              className="text-[10px] hover:text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
             >
-              <Eye className="w-3 h-3" />
-              Preview
-            </button>
-            <button
-              onClick={() => setActiveBottomTab('logs')}
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium transition ${
-                activeBottomTab === 'logs' ? 'text-indigo-400 bg-neutral-800' : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Terminal className="w-3 h-3" />
-              Console Logs
-            </button>
-            <button
-              onClick={() => setActiveBottomTab('problems')}
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium transition ${
-                activeBottomTab === 'problems' ? 'text-indigo-400 bg-neutral-800' : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <AlertCircle className="w-3 h-3" />
-              Problems (0)
+              Clear
             </button>
           </div>
-
-          <div className="text-[10px] text-neutral-500 font-mono flex items-center gap-2">
-            <span>HMR: active</span>
-            <span>•</span>
-            <span className="text-emerald-400">Port: 3000</span>
-          </div>
-        </div>
-
-        {/* Collapsible Console Drawer */}
-        {activeBottomTab === 'logs' && (
-          <div className="h-28 bg-[#0a0b0d] border-t border-neutral-800/80 p-2.5 font-mono text-[11px] overflow-y-auto space-y-1">
-            {logs.map((l, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-neutral-400">
-                <span className="text-neutral-600">{l.time}</span>
-                <span className="text-indigo-400 font-semibold">[{l.level}]</span>
-                <span className="text-neutral-300">{l.message}</span>
+          <div className="flex-1 overflow-y-auto space-y-1 text-neutral-300">
+            {logs.map((log, idx) => (
+              <div key={idx} className="flex items-start gap-2">
+                <span className="text-neutral-500">{idx + 1}</span>
+                <span className="text-cyan-200/90">{log}</span>
               </div>
             ))}
           </div>
-        )}
-
-        {activeBottomTab === 'problems' && (
-          <div className="h-24 bg-[#0a0b0d] border-t border-neutral-800/80 p-3 text-xs flex items-center justify-center text-neutral-500">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 mr-2" />
-            No TypeScript diagnostics or compile errors found in current workspace.
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

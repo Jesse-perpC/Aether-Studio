@@ -1,121 +1,142 @@
-import React, { useState } from 'react';
-import { X, FolderPlus, Rocket } from 'lucide-react';
+import React, { useState } from "react";
+import { X, Sparkles, Box } from "lucide-react";
+import { AppRecord } from "../types";
 
 interface NewAppModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateApp: (name: string, description: string, templateType: 'react-vite' | 'nextjs') => void;
+  onCreateApp: (app: Partial<AppRecord>) => void;
 }
 
-export const NewAppModal: React.FC<NewAppModalProps> = ({ isOpen, onClose, onCreateApp }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [appType, setAppType] = useState<'react-vite' | 'nextjs'>('react-vite');
+const TEMPLATES = [
+  {
+    id: "vite-react",
+    name: "Vite + React 19 (Tailwind CSS)",
+    description: "Ultra-fast client bundle with Tailwind v4, Lucide icons, and hot module replacement.",
+    tag: "Recommended",
+  },
+  {
+    id: "nextjs-app",
+    name: "Next.js 15 App Router",
+    description: "Full-stack server actions, streaming SSR, and edge route support.",
+    tag: "Full-Stack",
+  },
+  {
+    id: "node-agent",
+    name: "Autonomous Node.js Agent Host",
+    description: "Headless daemon with MCP server integration, SQLite ORM, and WebSocket feed.",
+    tag: "Backend",
+  },
+];
 
+export const NewAppModal: React.FC<NewAppModalProps> = ({
+  isOpen,
+  onClose,
+  onCreateApp,
+}) => {
   if (!isOpen) return null;
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("Vite React Template");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onCreateApp(name.trim(), description.trim(), appType);
-    setName('');
-    setDescription('');
+
+    onCreateApp({
+      name: name.trim(),
+      description: description.trim() || "Dynamic application created in Aether Studio.",
+      template: selectedTemplate,
+    });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-md bg-[#0e121a] border border-cyan-500/30 rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.15)] overflow-hidden font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none">
+      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+        <div className="p-3.5 sm:p-4 border-b border-neutral-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-              <FolderPlus className="w-4 h-4" />
-            </div>
+            <span className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 shrink-0">
+              <Box className="w-4 h-4" />
+            </span>
             <div>
-              <h2 className="text-sm font-bold font-mono text-white uppercase tracking-tight">
-                Initialize Aether Project
-              </h2>
-              <p className="text-[11px] text-neutral-400">Scaffold isolated workspace container</p>
+              <h2 className="text-sm font-bold text-neutral-100">Initialize New Application</h2>
+              <p className="text-xs text-neutral-400">Scaffold a fresh sandbox container with pre-configured toolchains</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded text-neutral-400 hover:text-white transition">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 cursor-pointer"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-5 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
-            <label className="block text-neutral-300 font-mono text-[11px] mb-1.5">PROJECT DESIGNATION</label>
+            <label className="text-xs font-semibold text-neutral-300 block mb-1">Application Name</label>
             <input
               type="text"
-              placeholder="e.g. Neural Vector Visualizer"
+              placeholder="e.g. Nexus Neural Matrix"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-[#07080d] border border-neutral-800 rounded-xl text-white placeholder-neutral-600 font-mono focus:outline-hidden focus:border-cyan-500/60"
-              autoFocus
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-cyan-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-neutral-300 font-mono text-[11px] mb-1.5">OPERATIONAL SPECIFICATION</label>
+            <label className="text-xs font-semibold text-neutral-300 block mb-1">Description</label>
             <textarea
-              placeholder="What task will this neural application perform?"
+              placeholder="Brief summary of app purpose and features..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 bg-[#07080d] border border-neutral-800 rounded-xl text-white placeholder-neutral-600 resize-none font-sans focus:outline-hidden focus:border-cyan-500/60"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-cyan-500 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-neutral-300 font-mono text-[11px] mb-1.5">RUNTIME STACK</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setAppType('react-vite')}
-                className={`p-3 rounded-xl border text-left transition ${
-                  appType === 'react-vite'
-                    ? 'bg-cyan-500/15 border-cyan-500/50 text-white font-medium shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-                    : 'bg-[#07080d] border-neutral-800 text-neutral-400 hover:text-white'
-                }`}
-              >
-                <div className="font-mono font-bold text-xs text-cyan-300">React + Vite</div>
-                <div className="text-[10px] text-neutral-500 mt-0.5">High-speed SPA (Recommended)</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAppType('nextjs')}
-                className={`p-3 rounded-xl border text-left transition ${
-                  appType === 'nextjs'
-                    ? 'bg-cyan-500/15 border-cyan-500/50 text-white font-medium shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-                    : 'bg-[#07080d] border-neutral-800 text-neutral-400 hover:text-white'
-                }`}
-              >
-                <div className="font-mono font-bold text-xs text-neutral-300">Next.js App Router</div>
-                <div className="text-[10px] text-neutral-500 mt-0.5">Fullstack with API routes</div>
-              </button>
+            <label className="text-xs font-semibold text-neutral-300 block mb-2">Foundation Template</label>
+            <div className="space-y-2">
+              {TEMPLATES.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  onClick={() => setSelectedTemplate(tpl.name)}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                    selectedTemplate === tpl.name
+                      ? "bg-cyan-950/40 border-cyan-700 text-neutral-100"
+                      : "bg-neutral-900/60 border-neutral-800/80 text-neutral-400 hover:border-neutral-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                    <span className="text-xs font-bold text-neutral-200">{tpl.name}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-cyan-400 border border-neutral-700">
+                      {tpl.tag}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-400">{tpl.description}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="pt-3 border-t border-neutral-800 flex items-center justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-800 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 text-neutral-400 hover:text-white font-mono"
+              className="px-3.5 py-1.5 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!name.trim()}
-              className="px-4 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white font-mono font-bold rounded-xl flex items-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.25)] transition cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-xs font-semibold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
             >
-              <Rocket className="w-3.5 h-3.5" />
-              <span>SCAFFOLD</span>
+              <Sparkles className="w-3.5 h-3.5" /> Scaffold Application
             </button>
           </div>
         </form>

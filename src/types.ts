@@ -1,136 +1,96 @@
-export type ChatMode = 'agent' | 'build' | 'ask' | 'plan';
+export type ChatMode = "local-agent" | "build" | "ask" | "plan";
 
-export type ViewTab = 'studio' | 'code' | 'templates' | 'releases' | 'settings';
+export type ViewTab = "apps" | "templates" | "library" | "plugins" | "settings";
 
-export type DeviceViewport = 'desktop' | 'tablet' | 'mobile';
+export type PreviewTab = "preview" | "code" | "plan" | "security";
 
-export type PreviewTab = 'preview' | 'logs' | 'problems';
+export type DeviceMode = "desktop" | "tablet" | "mobile";
 
-export interface WorkflowRun {
+export interface AppRecord {
   id: string;
   name: string;
-  workflowFile: string;
-  commitSha: string;
-  commitMessage: string;
-  branch: string;
-  status: 'completed' | 'in_progress' | 'queued' | 'failed';
-  conclusion: 'success' | 'failure' | 'cancelled' | null;
-  startedAt: string;
-  duration: string;
-  platform: 'windows' | 'matrix' | 'ci' | 'release';
-  artifacts: {
-    name: string;
-    size: string;
-    downloadUrl: string;
-    type: 'installer' | 'portable' | 'matrix';
-  }[];
-}
-
-export interface DesktopRelease {
-  id: string;
-  tag: string;
-  name: string;
-  publishedAt: string;
-  isPrerelease: boolean;
-  channel: 'stable' | 'nightly' | 'beta';
-  downloadsCount: number;
-  changelog: string[];
-  assets: {
-    name: string;
-    platform: 'win32' | 'darwin' | 'linux';
-    arch: 'x64' | 'arm64' | 'universal';
-    size: string;
-    type: 'exe' | 'zip' | 'dmg' | 'deb';
-    downloadUrl: string;
-  }[];
-}
-
-export interface AppUpdateInfo {
-  hasUpdate: boolean;
-  currentVersion: string;
-  latestVersion: string;
-  channel: 'stable' | 'nightly';
-  releaseUrl: string;
-  publishedAt: string;
-  notes: string;
-}
-
-export interface AIModel {
-  id: string;
-  name: string;
-  provider: 'anthropic' | 'openai' | 'google' | 'ollama' | 'deepseek';
   description: string;
-  contextWindow: string;
-  tag?: string;
-}
-
-export interface ProjectFile {
-  path: string;
-  name: string;
-  content: string;
-  language: string;
-  isModified?: boolean;
-}
-
-export interface FileDiff {
-  path: string;
-  oldContent: string;
-  newContent: string;
-  additions: number;
-  deletions: number;
-}
-
-export interface AgentStep {
-  id: string;
-  type: 'read_file' | 'edit_file' | 'run_command' | 'typecheck' | 'install_package' | 'thought';
-  title: string;
-  detail?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  timestamp: string;
+  template: string;
+  version: string;
+  status: "running" | "stopped" | "building";
+  port: number;
+  lastEdited: string;
+  tags: string[];
+  files: Record<string, string>;
 }
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
   mode?: ChatMode;
-  modelId?: string;
-  steps?: AgentStep[];
-  diffs?: FileDiff[];
-  isApplied?: boolean;
+  toolCalls?: AgentToolCall[];
+  statusMessage?: string;
+  diffSummary?: {
+    filesChanged: number;
+    additions: number;
+    deletions: number;
+  };
 }
 
-export interface DyadApp {
+export interface AgentToolCall {
   id: string;
-  name: string;
-  slug: string;
-  description: string;
-  category: string;
-  icon: string;
-  updatedAt: string;
-  files: ProjectFile[];
-  chatHistory: ChatMessage[];
-  appType: 'react-vite' | 'nextjs';
-  previewComponent: string;
+  name: "read_file" | "write_file" | "execute_command" | "run_type_checks" | "web_fetch" | "mcp_query";
+  status: "pending" | "running" | "completed" | "failed";
+  target?: string;
+  args?: Record<string, any>;
+  output?: string;
 }
 
-export interface ProviderConfig {
-  anthropicKey: string;
-  openaiKey: string;
-  geminiKey: string;
-  ollamaHost: string;
-  defaultMode: ChatMode;
-  defaultModel: string;
-  autoApproveTools: boolean;
-  theme: 'dark' | 'light' | 'system';
-  releaseChannel: 'stable' | 'beta';
+export interface PlanMilestone {
+  id: string;
+  title: string;
+  status: "pending" | "in-progress" | "completed";
+  annotationId?: string;
+  description: string;
+  steps: string[];
+}
+
+export interface SecurityFinding {
+  id: string;
+  severity: "critical" | "high" | "medium" | "low";
+  type: string;
+  file: string;
+  line: number;
+  description: string;
+  fixAvailable: boolean;
 }
 
 export interface PromptTemplate {
   id: string;
   title: string;
-  category: 'Feature' | 'Design' | 'Fix' | 'Backend';
+  description?: string;
+  slug?: string;
+  content: string;
+  category: "Architectural" | "Refactoring" | "Security" | "Performance" | "Custom";
+}
+
+export interface McpPlugin {
+  id: string;
+  name: string;
   description: string;
-  prompt: string;
+  status: "connected" | "disconnected";
+  version: string;
+  endpoint: string;
+  tools: string[];
+}
+
+export interface AppSettings {
+  enableAgentV2: boolean;
+  enableSandboxScriptExecution: boolean;
+  enableCloudSandbox: boolean;
+  autoUpdate: boolean;
+  enableNotifications: boolean;
+  defaultMode: ChatMode;
+  selectedModel: string;
+  geminiApiKey: string;
+  anthropicApiKey: string;
+  openaiApiKey: string;
+  ollamaHost: string;
 }
