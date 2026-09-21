@@ -8,22 +8,41 @@ import {
   FileJson,
   FileText,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  GitCommit,
+  GitBranch,
+  RefreshCw,
+  Layers
 } from "lucide-react";
 import { AppRecord } from "../types";
 
 interface CodeEditorPanelProps {
   app: AppRecord;
   onUpdateFile: (filename: string, content: string) => void;
+  onCommitChanges?: (commitMessage: string) => void;
+  onOpenGitHubSync?: () => void;
+  gitSyncStatus?: "idle" | "syncing" | "synced" | "error";
+  gitRepoName?: string;
+  lastCommitHash?: string;
 }
 
-export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateFile }) => {
+export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ 
+  app, 
+  onUpdateFile,
+  onCommitChanges,
+  onOpenGitHubSync,
+  gitSyncStatus = "idle",
+  gitRepoName,
+  lastCommitHash = "c4a921d",
+}) => {
   const fileKeys = Object.keys(app.files);
   const [activeFile, setActiveFile] = useState<string>(fileKeys[0] || "src/App.tsx");
   const [fileContent, setFileContent] = useState<string>(app.files[activeFile] || "");
   const [copied, setCopied] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showFileTree, setShowFileTree] = useState(true);
+  const [showCommitPrompt, setShowCommitPrompt] = useState(false);
+  const [commitMsg, setCommitMsg] = useState("");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
@@ -45,6 +64,20 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateF
   const handleSave = () => {
     onUpdateFile(activeFile, fileContent);
     setHasUnsavedChanges(false);
+  };
+
+  const handleCommitSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (hasUnsavedChanges) {
+      onUpdateFile(activeFile, fileContent);
+      setHasUnsavedChanges(false);
+    }
+    const message = commitMsg.trim() || `update ${activeFile}`;
+    if (onCommitChanges) {
+      onCommitChanges(message);
+    }
+    setCommitMsg("");
+    setShowCommitPrompt(false);
   };
 
   const handleCopy = () => {
@@ -109,8 +142,10 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateF
 
           {/* Tree Footer */}
           <div className="p-2 sm:p-2.5 border-t border-neutral-800 text-[10px] text-neutral-400 flex items-center justify-between font-mono bg-neutral-900/40 shrink-0">
-            <span>Vite + React 19</span>
-            <span className="text-emerald-400">Ready</span>
+            <span>Dual Target</span>
+            <span className="text-cyan-400 flex items-center gap-1">
+              <Layers className="w-3 h-3" /> Web + Desktop
+            </span>
           </div>
         </div>
       )}
@@ -144,6 +179,19 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateF
               </button>
             )}
 
+            {/* Commit & Sync Action */}
+            <button
+              onClick={() => {
+                setCommitMsg(`update ${activeFile}`);
+                setShowCommitPrompt(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-750 text-cyan-300 text-xs font-mono font-medium transition-colors cursor-pointer whitespace-nowrap border border-neutral-700"
+              title="Commit current workspace and sync to GitHub"
+            >
+              <GitCommit className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Commit & Sync</span>
+            </button>
+
             <button
               onClick={handleCopy}
               className="flex items-center gap-1 p-1.5 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
@@ -153,6 +201,36 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateF
             </button>
           </div>
         </div>
+
+        {/* Quick Commit Modal / Banner */}
+        {showCommitPrompt && (
+          <div className="p-2.5 bg-neutral-900 border-b border-neutral-800 flex items-center gap-2 shrink-0 z-20">
+            <GitCommit className="w-4 h-4 text-cyan-400 shrink-0" />
+            <form onSubmit={handleCommitSubmit} className="flex-1 flex items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Commit message (e.g. feat: update UI styling)..."
+                value={commitMsg}
+                onChange={(e) => setCommitMsg(e.target.value)}
+                className="flex-1 bg-neutral-950 border border-neutral-700 rounded px-2.5 py-1 text-xs text-neutral-200 focus:outline-none focus:border-cyan-500 font-mono"
+              />
+              <button
+                type="submit"
+                className="px-3 py-1 rounded bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-xs font-semibold whitespace-nowrap cursor-pointer"
+              >
+                Commit & Push
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCommitPrompt(false)}
+                className="px-2 py-1 text-neutral-400 hover:text-neutral-200 text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Editor Textarea with synced line numbers */}
         <div className="flex-1 relative flex overflow-hidden font-mono text-xs min-h-0">
@@ -184,10 +262,35 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateF
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               TypeScript OK
             </span>
-            <span>UTF-8</span>
-            <span>Tab: 2</span>
+
+            {/* Git Branch & Commit Hash */}
+            <span className="flex items-center gap-1 text-neutral-300">
+              <GitBranch className="w-3 h-3 text-cyan-400" />
+              <span>main</span>
+              <span className="text-neutral-500">({lastCommitHash})</span>
+            </span>
+
+            {/* GitHub Sync Status Pill */}
+            <button
+              onClick={onOpenGitHubSync}
+              className="flex items-center gap-1 hover:text-cyan-300 transition-colors cursor-pointer"
+            >
+              {gitSyncStatus === "syncing" ? (
+                <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin" />
+              ) : (
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  gitSyncStatus === "synced" ? "bg-emerald-400" : gitSyncStatus === "error" ? "bg-rose-400" : "bg-neutral-500"
+                }`} />
+              )}
+              <span>GitHub:</span>
+              <span className="text-neutral-300 underline underline-offset-2">
+                {gitRepoName ? `${gitRepoName.split("/")[1] || gitRepoName} (${gitSyncStatus})` : "Configure Sync"}
+              </span>
+            </button>
           </div>
-          <div className="shrink-0">
+
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-neutral-500">Dual: Desktop & Web</span>
             <span>Lines: {lineNumbers.length}</span>
           </div>
         </div>
@@ -195,3 +298,4 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({ app, onUpdateF
     </div>
   );
 };
+

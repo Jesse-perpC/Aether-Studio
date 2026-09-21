@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Settings, Cpu, Key, Check } from "lucide-react";
+import { X, Settings, Cpu, Key, Check, GitBranch } from "lucide-react";
 import { AppSettings } from "../types";
 
 interface SettingsModalProps {
@@ -138,6 +138,89 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-cyan-500 font-mono"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* GitHub Continuous Workspace Sync */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-neutral-200 flex items-center gap-2">
+              <GitBranch className="w-3.5 h-3.5 text-emerald-400" /> GitHub Repository Sync (Desktop & Web)
+            </h3>
+            <div className="bg-neutral-900/70 border border-neutral-800 rounded-xl p-3.5 space-y-3">
+              <label className="flex items-center justify-between cursor-pointer gap-2">
+                <div>
+                  <p className="text-xs font-medium text-neutral-200">Auto-Sync on Every Commit</p>
+                  <p className="text-[11px] text-neutral-400">
+                    Pushes dual-target architecture (Electron Desktop + Vite Web) on every commit
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={localSettings.githubSync?.enabled ?? false}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      githubSync: {
+                        enabled: e.target.checked,
+                        repoUrl: localSettings.githubSync?.repoUrl || "",
+                        branch: localSettings.githubSync?.branch || "main",
+                        token: localSettings.githubSync?.token || "",
+                        autoSyncOnCommit: e.target.checked,
+                        syncStatus: localSettings.githubSync?.syncStatus || "idle",
+                      },
+                    })
+                  }
+                  className="rounded bg-neutral-800 border-neutral-700 text-cyan-500 focus:ring-0 w-4 h-4 shrink-0"
+                />
+              </label>
+
+              <div className="pt-2 border-t border-neutral-800 space-y-2.5">
+                <div>
+                  <label className="text-xs text-neutral-300 mb-1 block">GitHub Repository</label>
+                  <input
+                    type="text"
+                    placeholder="owner/repo (e.g. octocat/my-app)"
+                    value={localSettings.githubSync?.repoUrl || ""}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        githubSync: {
+                          enabled: localSettings.githubSync?.enabled ?? true,
+                          repoUrl: e.target.value,
+                          branch: localSettings.githubSync?.branch || "main",
+                          token: localSettings.githubSync?.token || "",
+                          autoSyncOnCommit: localSettings.githubSync?.autoSyncOnCommit ?? true,
+                          syncStatus: localSettings.githubSync?.syncStatus || "idle",
+                        },
+                      })
+                    }
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-neutral-300 mb-1 block">Personal Access Token (PAT)</label>
+                  <input
+                    type="password"
+                    placeholder="ghp_••••••••••••••••••••••••"
+                    value={localSettings.githubSync?.token || ""}
+                    onChange={(e) =>
+                      setLocalSettings({
+                        ...localSettings,
+                        githubSync: {
+                          enabled: localSettings.githubSync?.enabled ?? true,
+                          repoUrl: localSettings.githubSync?.repoUrl || "",
+                          branch: localSettings.githubSync?.branch || "main",
+                          token: e.target.value,
+                          autoSyncOnCommit: localSettings.githubSync?.autoSyncOnCommit ?? true,
+                          syncStatus: localSettings.githubSync?.syncStatus || "idle",
+                        },
+                      })
+                    }
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                </div>
               </div>
             </div>
           </div>

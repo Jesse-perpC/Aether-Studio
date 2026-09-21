@@ -1,33 +1,89 @@
 import React, { useState } from "react";
 import { Terminal, AlertCircle, ChevronUp, ChevronDown, CheckCircle2, Trash2 } from "lucide-react";
+import { WorkspaceCommit } from "../types";
 
 interface BottomDockProps {
   isOpen: boolean;
   onToggle: () => void;
+  onCommitAndSync?: (message: string) => Promise<void>;
+  gitRepoName?: string;
+  branch?: string;
+  commits?: WorkspaceCommit[];
 }
 
-export const BottomDock: React.FC<BottomDockProps> = ({ isOpen, onToggle }) => {
+export const BottomDock: React.FC<BottomDockProps> = ({ 
+  isOpen, 
+  onToggle,
+  onCommitAndSync,
+  gitRepoName,
+  branch = "main",
+  commits = [],
+}) => {
   const [activeTab, setActiveTab] = useState<"terminal" | "problems" | "output">("terminal");
   const [terminalCommand, setTerminalCommand] = useState("");
   const [history, setHistory] = useState<string[]>([
     "aether-agent --version",
     "Aether Studio IPC Daemon v2.4.1 [linux-x64]",
     "tsgo --strict: 0 errors in 18 source files [142ms]",
+    "git remote: configured dual-target sync (desktop + web)",
     "Vite v6.2.0 ready in 189 ms",
     "➜  Local:   http://localhost:3000/",
-    "➜  Network: use --host to expose",
   ]);
 
-  const handleRunCommand = (e: React.FormEvent) => {
+  const handleRunCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     const cmd = terminalCommand.trim();
     if (!cmd) return;
 
-    let response = "";
+    let response: string | string[] = "";
+
     if (cmd.startsWith("tsgo") || cmd.includes("check") || cmd.includes("ts")) {
       response = "✓ tsgo strict pass: No diagnostic errors found in AST.";
-    } else if (cmd.startsWith("git") || cmd.includes("status")) {
-      response = "On branch main. Your branch is up to date with 'origin/main'. Nothing to commit, working tree clean.";
+    } else if (cmd.startsWith("git commit")) {
+      const match = cmd.match(/-m\s+["'](.+?)["']/);
+      const msg = match ? match[1] : "update workspace files";
+      const shortHash = Math.random().toString(16).substring(2, 9);
+      response = [
+        `[${branch} ${shortHash}] ${msg}`,
+        ` 2 target structures updated (web/ + desktop/)`,
+        ` [sync] Continuous sync triggered for GitHub repository: ${gitRepoName || "configured in settings"}...`,
+      ];
+      if (onCommitAndSync) {
+        onCommitAndSync(msg);
+      }
+    } else if (cmd.startsWith("git push")) {
+      if (gitRepoName) {
+        response = [
+          `Pushing to https://github.com/${gitRepoName} (branch: ${branch})`,
+          `Synchronizing dual application file structures...`,
+          `✓ Everything up-to-date. Commit pushed successfully.`,
+        ];
+        if (onCommitAndSync) {
+          onCommitAndSync(`manual push from terminal to ${branch}`);
+        }
+      } else {
+        response = "fatal: No GitHub remote repository configured. Open GitHub Sync in header to link a repository.";
+      }
+    } else if (cmd.startsWith("git remote")) {
+      response = [
+        `origin  https://github.com/${gitRepoName || "username/repository"} (fetch)`,
+        `origin  https://github.com/${gitRepoName || "username/repository"} (push)`,
+        `targets: web/ (Vite SPA) & desktop/ (Electron 40 Forge)`,
+      ];
+    } else if (cmd.startsWith("git log")) {
+      if (commits.length > 0) {
+        response = commits.slice(0, 5).map(
+          (c) => `commit ${c.hash} - ${c.message} (${c.timestamp}) [${c.syncedToGitHub ? "synced" : "local"}]`
+        );
+      } else {
+        response = "commit 7f2a1b9 (HEAD -> main) feat: initialize dual workspace structure (desktop + web)";
+      }
+    } else if (cmd.startsWith("git status")) {
+      response = [
+        `On branch ${branch}`,
+        `Your branch is tracking 'origin/${branch}' (GitHub Sync active).`,
+        `Workspace targets: web/ + desktop/ clean. Nothing to commit, working tree clean.`,
+      ];
     } else if (cmd.includes("lint")) {
       response = "✓ oxlint: 0 problems found across 18 modules [8ms].";
     } else if (cmd.includes("test")) {
@@ -36,7 +92,8 @@ export const BottomDock: React.FC<BottomDockProps> = ({ isOpen, onToggle }) => {
       response = `[exec] Command '${cmd}' executed successfully with exit code 0.`;
     }
 
-    setHistory((prev) => [...prev, `$ ${cmd}`, response]);
+    const newEntries = Array.isArray(response) ? response : [response];
+    setHistory((prev) => [...prev, `$ ${cmd}`, ...newEntries]);
     setTerminalCommand("");
   };
 

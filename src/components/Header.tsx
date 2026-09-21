@@ -6,7 +6,11 @@ import {
   BookOpen, 
   Blocks, 
   ChevronDown,
-  Plus
+  Plus,
+  GitBranch,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { AppRecord, ChatMode } from "../types";
 
@@ -18,6 +22,9 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenPrompts: () => void;
   onOpenMcp: () => void;
+  onOpenGitHubSync: () => void;
+  gitSyncStatus?: "idle" | "syncing" | "synced" | "error";
+  gitRepoName?: string;
   onToggleAppStatus: () => void;
   chatMode: ChatMode;
   onChangeChatMode: (mode: ChatMode) => void;
@@ -31,6 +38,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenPrompts,
   onOpenMcp,
+  onOpenGitHubSync,
+  gitSyncStatus = "idle",
+  gitRepoName,
   onToggleAppStatus,
   chatMode,
   onChangeChatMode,
@@ -159,6 +169,38 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Run</span>
             </>
           )}
+        </button>
+
+        {/* GitHub Sync */}
+        <button
+          onClick={onOpenGitHubSync}
+          className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md text-xs font-mono transition-all cursor-pointer border ${
+            gitSyncStatus === "syncing"
+              ? "bg-cyan-950/70 text-cyan-300 border-cyan-800/60"
+              : gitSyncStatus === "synced"
+              ? "bg-neutral-900 hover:bg-neutral-850 text-neutral-200 border-neutral-750"
+              : gitSyncStatus === "error"
+              ? "bg-rose-950/50 text-rose-300 border-rose-800/60"
+              : "bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 border-neutral-800"
+          }`}
+          title={
+            gitRepoName
+              ? `GitHub: ${gitRepoName} (${gitSyncStatus})`
+              : "Sync Workspace to GitHub (Desktop & Web)"
+          }
+        >
+          {gitSyncStatus === "syncing" ? (
+            <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+          ) : gitSyncStatus === "synced" ? (
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          ) : gitSyncStatus === "error" ? (
+            <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+          ) : (
+            <GitBranch className="w-3.5 h-3.5 text-neutral-400" />
+          )}
+          <span className="hidden md:inline font-sans font-medium text-xs">
+            {gitRepoName ? gitRepoName.split("/")[1] || "Sync" : "GitHub Sync"}
+          </span>
         </button>
 
         {/* MCP Extensions */}

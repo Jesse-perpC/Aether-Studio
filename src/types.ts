@@ -81,6 +81,47 @@ export interface McpPlugin {
   tools: string[];
 }
 
+export interface GitHubBranch {
+  name: string;
+  commitSha: string;
+  isProtected: boolean;
+  isDefault?: boolean;
+}
+
+export type WorkspaceTarget = "web" | "desktop" | "mobile" | "workflow" | "root";
+
+export interface FileSyncItem {
+  path: string;
+  target: WorkspaceTarget;
+  status: "added" | "modified" | "synced";
+  sizeBytes: number;
+  linesCount: number;
+  description: string;
+}
+
+export interface GitHubSyncConfig {
+  enabled: boolean;
+  repoUrl: string; // e.g. "owner/repo" or "https://github.com/owner/repo"
+  branch: string;  // e.g. "main", "develop", "feature/mobile-app"
+  token: string;   // GitHub PAT
+  autoSyncOnCommit: boolean;
+  lastSyncedCommit?: string;
+  lastSyncedAt?: string;
+  syncStatus: "idle" | "syncing" | "synced" | "error";
+  errorMessage?: string;
+}
+
+export interface WorkspaceCommit {
+  id: string;
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: string;
+  filesChanged: string[];
+  syncedToGitHub: boolean;
+  githubCommitUrl?: string;
+}
+
 export interface AppSettings {
   enableAgentV2: boolean;
   enableSandboxScriptExecution: boolean;
@@ -93,4 +134,5 @@ export interface AppSettings {
   anthropicApiKey: string;
   openaiApiKey: string;
   ollamaHost: string;
+  githubSync?: GitHubSyncConfig;
 }

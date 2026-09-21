@@ -9,6 +9,7 @@ import { PromptLibraryModal } from "./components/PromptLibraryModal";
 import { McpModal } from "./components/McpModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { NewAppModal } from "./components/NewAppModal";
+import { GitHubSyncModal } from "./components/GitHubSyncModal";
 import { BottomDock } from "./components/BottomDock";
 import { 
   INITIAL_APPS, 
@@ -23,7 +24,9 @@ import {
   ChatMode, 
   PlanMilestone, 
   PreviewTab, 
-  SecurityFinding 
+  SecurityFinding,
+  GitHubSyncConfig,
+  WorkspaceCommit
 } from "./types";
 import { 
   Code, 
@@ -31,8 +34,12 @@ import {
   ShieldAlert, 
   Monitor,
   MessageSquare,
-  Layers
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  X
 } from "lucide-react";
+import { syncWorkspaceToGitHub } from "./utils/githubSyncService";
 
 export default function App() {
   const [apps, setApps] = useState<AppRecord[]>(INITIAL_APPS);
@@ -51,7 +58,35 @@ export default function App() {
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isNewAppModalOpen, setIsNewAppModalOpen] = useState(false);
+  const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
   const [isBottomDockOpen, setIsBottomDockOpen] = useState(false);
+
+  // GitHub Sync & Commits State
+  const [githubSyncConfig, setGithubSyncConfig] = useState<GitHubSyncConfig>({
+    enabled: false,
+    repoUrl: "",
+    branch: "main",
+    token: "",
+    autoSyncOnCommit: true,
+    syncStatus: "idle",
+  });
+  const [isSyncingGitHub, setIsSyncingGitHub] = useState(false);
+  const [commits, setCommits] = useState<WorkspaceCommit[]>([
+    {
+      id: "commit-init",
+      hash: "7f2a1b9",
+      message: "chore(workspace): initialize dual desktop & web architecture",
+      author: "Aether Agent",
+      timestamp: "10:42 AM",
+      filesChanged: ["web/package.json", "desktop/package.json", "package.json", "README.md"],
+      syncedToGitHub: false,
+    },
+  ]);
+  const [syncToast, setSyncToast] = useState<{
+    type: "success" | "error" | "info";
+    title: string;
+    detail?: string;
+  } | null>(null);
 
   // Settings State
   const [settings, setSettings] = useState<AppSettings>({
@@ -66,7 +101,102 @@ export default function App() {
     anthropicApiKey: "",
     openaiApiKey: "",
     ollamaHost: "http://localhost:11434",
+    githubSync: githubSyncConfig,
   });
+
+  // Keep githubSyncConfig and settings.githubSync in sync
+  const handleSaveSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    if (newSettings.githubSync) {
+      setGithubSyncConfig(newSettings.githubSync);
+    }
+  };
+
+  const handleUpdateGitHubConfig = (newConfig: GitHubSyncConfig) => {
+    setGithubSyncConfig(newConfig);
+    setSettings((prev) => ({ ...prev, githubSync: newConfig }));
+  };
+
+  // Commit & GitHub Sync Handler
+  const handleCommitAndSync = async (commitMessage: string) => {
+    const shortHash = Math.random().toString(16).substring(2, 9);
+    const newCommit: WorkspaceCommit = {
+      id: `commit-${Date.now()}`,
+      hash: shortHash,
+      message: commitMessage,
+      author: "Aether Developer",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      filesChanged: Object.keys(activeApp.files),
+      syncedToGitHub: false,
+    };
+
+    // If GitHub sync is enabled, or if repo & token are configured
+    if (githubSyncConfig.repoUrl && githubSyncConfig.token) {
+      setIsSyncingGitHub(true);
+      setGithubSyncConfig((prev) => ({ ...prev, syncStatus: "syncing" }));
+
+      try {
+        const syncResult = await syncWorkspaceToGitHub(
+          githubSyncConfig,
+          activeApp,
+          commitMessage
+        );
+
+        if (syncResult.success && syncResult.commit) {
+          newCommit.syncedToGitHub = true;
+          newCommit.githubCommitUrl = syncResult.commit.githubCommitUrl;
+
+          setGithubSyncConfig((prev) => ({
+            ...prev,
+            syncStatus: "synced",
+            lastSyncedCommit: shortHash,
+            lastSyncedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            errorMessage: undefined,
+          }));
+
+          setSyncToast({
+            type: "success",
+            title: `Synced to GitHub [${shortHash}]`,
+            detail: `Pushed dual architecture: ${syncResult.webFilesCount} web + ${syncResult.desktopFilesCount} desktop files to ${githubSyncConfig.branch}`,
+          });
+        } else {
+          setGithubSyncConfig((prev) => ({
+            ...prev,
+            syncStatus: "error",
+            errorMessage: syncResult.error,
+          }));
+
+          setSyncToast({
+            type: "error",
+            title: "GitHub Sync Issue",
+            detail: syncResult.error || "Failed to push dual workspace files to GitHub",
+          });
+        }
+      } catch (err: any) {
+        setGithubSyncConfig((prev) => ({
+          ...prev,
+          syncStatus: "error",
+          errorMessage: err.message,
+        }));
+        setSyncToast({
+          type: "error",
+          title: "GitHub Sync Exception",
+          detail: err.message,
+        });
+      } finally {
+        setIsSyncingGitHub(false);
+      }
+    } else {
+      // Local commit recorded, inform user that GitHub is not configured
+      setSyncToast({
+        type: "info",
+        title: `Committed Locally [${shortHash}]`,
+        detail: "Configure GitHub repository in Sync modal to push changes continuously.",
+      });
+    }
+
+    setCommits((prev) => [newCommit, ...prev]);
+  };
 
   // App file update handler
   const handleUpdateFile = (filename: string, content: string) => {
@@ -85,9 +215,9 @@ export default function App() {
 
   // Toggle App Run/Stop
   const handleToggleAppStatus = () => {
-    const nextStatus = activeApp.status === "running" ? "stopped" : "running";
+    const nextStatus: "running" | "stopped" = activeApp.status === "running" ? "stopped" : "running";
     setActiveApp((prev) => {
-      const updated = { ...prev, status: nextStatus };
+      const updated: AppRecord = { ...prev, status: nextStatus };
       setApps((all) => all.map((a) => (a.id === updated.id ? updated : a)));
       return updated;
     });
@@ -133,6 +263,11 @@ export default function App() {
           { id: "t-3", name: "run_type_checks", status: "completed", output: "Type check passed [tsgo]" },
         ];
         diffSummary = { filesChanged: 1, additions: 14, deletions: 2 };
+
+        // If auto-sync on commit is enabled, create commit and push to GitHub
+        if (githubSyncConfig.enabled && githubSyncConfig.autoSyncOnCommit) {
+          handleCommitAndSync(`feat(agent): ${text.slice(0, 45)}`);
+        }
       }
 
       const agentMsg: ChatMessage = {
@@ -216,7 +351,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#08090d] text-neutral-100 font-sans">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#08090d] text-neutral-100 font-sans relative">
       {/* Top Header */}
       <Header
         activeApp={activeApp}
@@ -226,6 +361,9 @@ export default function App() {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenPrompts={() => setIsPromptModalOpen(true)}
         onOpenMcp={() => setIsMcpModalOpen(true)}
+        onOpenGitHubSync={() => setIsGitHubModalOpen(true)}
+        gitSyncStatus={githubSyncConfig.syncStatus}
+        gitRepoName={githubSyncConfig.repoUrl}
         onToggleAppStatus={handleToggleAppStatus}
         chatMode={chatMode}
         onChangeChatMode={setChatMode}
@@ -350,10 +488,34 @@ export default function App() {
               </button>
             </div>
 
-            {/* Quick Status / Hot Reload Status */}
-            <div className="hidden sm:flex items-center gap-2 text-[11px] font-mono text-neutral-400 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <span>Daemon: Connected</span>
+            {/* Quick Status / GitHub sync shortcut pill */}
+            <div className="hidden sm:flex items-center gap-3 text-[11px] font-mono text-neutral-400 shrink-0">
+              <button
+                onClick={() => setIsGitHubModalOpen(true)}
+                className="flex items-center gap-1.5 hover:text-cyan-300 transition-colors cursor-pointer"
+                title="Configure GitHub sync (Desktop & Web targets)"
+              >
+                <span className={`w-2 h-2 rounded-full ${
+                  githubSyncConfig.syncStatus === "synced"
+                    ? "bg-emerald-400"
+                    : githubSyncConfig.syncStatus === "syncing"
+                    ? "bg-cyan-400 animate-pulse"
+                    : githubSyncConfig.syncStatus === "error"
+                    ? "bg-rose-400"
+                    : "bg-neutral-500"
+                }`} />
+                <span>GitHub Sync:</span>
+                <span className="text-neutral-300 font-semibold underline underline-offset-2">
+                  {githubSyncConfig.repoUrl ? githubSyncConfig.repoUrl : "Off"}
+                </span>
+              </button>
+
+              <span className="text-neutral-600">|</span>
+
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Daemon OK</span>
+              </div>
             </div>
           </div>
 
@@ -361,7 +523,15 @@ export default function App() {
           <div className="flex-1 overflow-hidden min-h-0">
             {previewTab === "preview" && <PreviewPanel app={activeApp} />}
             {previewTab === "code" && (
-              <CodeEditorPanel app={activeApp} onUpdateFile={handleUpdateFile} />
+              <CodeEditorPanel 
+                app={activeApp} 
+                onUpdateFile={handleUpdateFile}
+                onCommitChanges={handleCommitAndSync}
+                onOpenGitHubSync={() => setIsGitHubModalOpen(true)}
+                gitSyncStatus={githubSyncConfig.syncStatus}
+                gitRepoName={githubSyncConfig.repoUrl}
+                lastCommitHash={commits[0]?.hash || "7f2a1b9"}
+              />
             )}
             {previewTab === "plan" && (
               <PlanPanel
@@ -391,9 +561,51 @@ export default function App() {
       <BottomDock
         isOpen={isBottomDockOpen}
         onToggle={() => setIsBottomDockOpen(!isBottomDockOpen)}
+        onCommitAndSync={handleCommitAndSync}
+        gitRepoName={githubSyncConfig.repoUrl}
+        branch={githubSyncConfig.branch}
+        commits={commits}
       />
 
+      {/* Floating Sync Notification Toast */}
+      {syncToast && (
+        <div className="fixed bottom-12 right-4 z-50 max-w-sm w-full bg-[#11141e] border border-neutral-700/80 rounded-xl shadow-2xl p-3 flex items-start gap-2.5 animate-in slide-in-from-bottom-2">
+          {syncToast.type === "success" ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          ) : syncToast.type === "error" ? (
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 min-w-0 text-xs">
+            <p className="font-semibold text-neutral-100">{syncToast.title}</p>
+            {syncToast.detail && (
+              <p className="text-[11px] text-neutral-400 mt-0.5 break-words font-mono">
+                {syncToast.detail}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setSyncToast(null)}
+            className="p-1 text-neutral-500 hover:text-neutral-300 rounded cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Modals */}
+      <GitHubSyncModal
+        isOpen={isGitHubModalOpen}
+        onClose={() => setIsGitHubModalOpen(false)}
+        config={githubSyncConfig}
+        onSaveConfig={handleUpdateGitHubConfig}
+        app={activeApp}
+        commits={commits}
+        onManualSync={handleCommitAndSync}
+        isSyncing={isSyncingGitHub}
+      />
+
       <PromptLibraryModal
         isOpen={isPromptModalOpen}
         onClose={() => setIsPromptModalOpen(false)}
@@ -411,7 +623,7 @@ export default function App() {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
-        onSaveSettings={setSettings}
+        onSaveSettings={handleSaveSettings}
       />
 
       <NewAppModal
