@@ -10,7 +10,8 @@ import {
   GitBranch,
   RefreshCw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trophy
 } from "lucide-react";
 import { AppRecord, ChatMode } from "../types";
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   onOpenPrompts: () => void;
   onOpenMcp: () => void;
   onOpenGitHubSync: () => void;
+  onOpenLeaderboard?: () => void;
   gitSyncStatus?: "idle" | "syncing" | "synced" | "error";
   gitRepoName?: string;
   onToggleAppStatus: () => void;
@@ -39,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPrompts,
   onOpenMcp,
   onOpenGitHubSync,
+  onOpenLeaderboard,
   gitSyncStatus = "idle",
   gitRepoName,
   onToggleAppStatus,
@@ -48,17 +51,27 @@ export const Header: React.FC<HeaderProps> = ({
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
   return (
-    <header className="h-14 border-b border-neutral-800/80 bg-[#0d0f17]/95 backdrop-blur-md px-2.5 sm:px-4 flex items-center justify-between select-none z-30 overflow-x-auto no-scrollbar">
+    <header className="h-14 border-b border-neutral-800/80 bg-[#0d0f17]/95 backdrop-blur-md px-2 sm:px-4 flex items-center justify-between select-none z-30 overflow-x-auto no-scrollbar gap-2">
       {/* Brand & App Selector */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-tr from-cyan-600 via-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-xs sm:text-sm tracking-wider border border-cyan-400/30 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 via-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-xs sm:text-sm tracking-wider border border-cyan-400/30 shrink-0">
             Æ
           </div>
-          <div className="hidden xs:block sm:block">
-            <span className="font-bold text-xs sm:text-sm tracking-wide text-neutral-100 flex items-center gap-1">
-              Aether <span className="text-cyan-400 font-normal text-[10px] sm:text-xs uppercase px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/50 hidden md:inline">Studio</span>
-            </span>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-xs sm:text-sm tracking-wide text-neutral-100 truncate">
+                Aether <span className="text-cyan-400 font-semibold">Studio</span>
+              </span>
+              <span className="hidden xl:inline text-[9px] text-cyan-300 font-mono px-1 py-0.2 rounded bg-cyan-950/60 border border-cyan-800/50">
+                v1.15
+              </span>
+            </div>
+            <div className="text-[9px] sm:text-[10px] text-neutral-400 truncate flex items-center gap-1">
+              <span className="text-cyan-400 font-medium">Perp Corp Media & AI Solutions</span>
+              <span className="hidden md:inline text-neutral-500">·</span>
+              <span className="hidden md:inline text-neutral-300">By Jesse Lepota</span>
+            </div>
           </div>
         </div>
 
@@ -68,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative shrink-0">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-md bg-neutral-900/90 hover:bg-neutral-800 text-xs text-neutral-200 border border-neutral-700/60 transition-all cursor-pointer max-w-[130px] sm:max-w-[170px]"
+            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-md bg-neutral-900/90 hover:bg-neutral-800 text-xs text-neutral-200 border border-neutral-700/60 transition-all cursor-pointer max-w-[120px] sm:max-w-[160px]"
           >
             <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
             <span className="font-medium truncate">{activeApp.name}</span>
@@ -148,6 +161,21 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: Controls & Utilities */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-2">
+        {/* #1 Leaderboard & Benchmark Modal Button */}
+        {onOpenLeaderboard && (
+          <button
+            onClick={onOpenLeaderboard}
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md text-xs font-semibold bg-gradient-to-r from-amber-500/20 to-cyan-500/20 hover:from-amber-500/30 hover:to-cyan-500/30 text-amber-300 border border-amber-400/40 transition-all cursor-pointer shadow-sm shadow-amber-500/10"
+            title="Aether Studio Ranked #1 Against Paid Alternatives (Bolt, Lovable, Cursor, Replit)"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="hidden sm:inline font-bold">#1 AI App Builder</span>
+            <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1 py-0.2 rounded font-mono hidden md:inline">
+              99.4
+            </span>
+          </button>
+        )}
+
         {/* Run / Stop App */}
         <button
           onClick={onToggleAppStatus}

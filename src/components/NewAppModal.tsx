@@ -53,8 +53,8 @@ export const NewAppModal: React.FC<NewAppModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none">
-      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none overflow-y-auto">
+      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden my-auto">
         {/* Header */}
         <div className="p-3.5 sm:p-4 border-b border-neutral-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -124,20 +124,25 @@ export const NewAppModal: React.FC<NewAppModalProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-800 shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3.5 py-1.5 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-xs font-semibold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5" /> Scaffold Application
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-neutral-800 shrink-0">
+            <span className="text-[10px] text-neutral-400 font-mono">
+              Perp Corp Media & AI Solutions • <span className="text-cyan-400">Jesse Lepota</span>
+            </span>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3.5 py-1.5 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-xs font-semibold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Scaffold Application
+              </button>
+            </div>
           </div>
         </form>
       </div>

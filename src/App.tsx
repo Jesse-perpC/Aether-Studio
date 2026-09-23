@@ -10,6 +10,7 @@ import { McpModal } from "./components/McpModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { NewAppModal } from "./components/NewAppModal";
 import { GitHubSyncModal } from "./components/GitHubSyncModal";
+import { LeaderboardModal } from "./components/LeaderboardModal";
 import { BottomDock } from "./components/BottomDock";
 import { 
   INITIAL_APPS, 
@@ -37,7 +38,8 @@ import {
   Layers,
   CheckCircle2,
   AlertCircle,
-  X
+  X,
+  Trophy
 } from "lucide-react";
 import { syncWorkspaceToGitHub } from "./utils/githubSyncService";
 
@@ -59,6 +61,7 @@ export default function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isNewAppModalOpen, setIsNewAppModalOpen] = useState(false);
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
+  const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
   const [isBottomDockOpen, setIsBottomDockOpen] = useState(false);
 
   // GitHub Sync & Commits State
@@ -351,7 +354,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#08090d] text-neutral-100 font-sans relative">
+    <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#08090d] text-neutral-100 font-sans relative">
       {/* Top Header */}
       <Header
         activeApp={activeApp}
@@ -362,6 +365,7 @@ export default function App() {
         onOpenPrompts={() => setIsPromptModalOpen(true)}
         onOpenMcp={() => setIsMcpModalOpen(true)}
         onOpenGitHubSync={() => setIsGitHubModalOpen(true)}
+        onOpenLeaderboard={() => setIsLeaderboardModalOpen(true)}
         gitSyncStatus={githubSyncConfig.syncStatus}
         gitRepoName={githubSyncConfig.repoUrl}
         onToggleAppStatus={handleToggleAppStatus}
@@ -370,17 +374,17 @@ export default function App() {
       />
 
       {/* Mobile Tab Switcher (< md) */}
-      <div className="md:hidden flex border-b border-neutral-800 bg-[#0c0e15] px-2 py-1.5 gap-1.5 text-xs shrink-0 select-none">
+      <div className="md:hidden flex border-b border-neutral-800 bg-[#0c0e15] px-2 py-1.5 gap-1.5 text-xs shrink-0 select-none overflow-x-auto no-scrollbar">
         <button
           onClick={() => setMobileTab("chat")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-medium transition-colors cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap ${
             mobileTab === "chat"
               ? "bg-neutral-800 text-cyan-400 font-semibold shadow-sm"
               : "text-neutral-400 hover:text-neutral-200"
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5" />
-          <span>Agent Chat</span>
+          <span>Agent</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-neutral-700 text-neutral-300 font-mono">
             {messages.length}
           </span>
@@ -388,7 +392,7 @@ export default function App() {
 
         <button
           onClick={() => setMobileTab("workspace")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-medium transition-colors cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap ${
             mobileTab === "workspace"
               ? "bg-neutral-800 text-cyan-400 font-semibold shadow-sm"
               : "text-neutral-400 hover:text-neutral-200"
@@ -399,6 +403,14 @@ export default function App() {
           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800/80 font-mono capitalize">
             {previewTab}
           </span>
+        </button>
+
+        <button
+          onClick={() => setIsLeaderboardModalOpen(true)}
+          className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap text-amber-300 bg-amber-500/10 border border-amber-500/30 shrink-0"
+        >
+          <Trophy className="w-3.5 h-3.5 text-amber-400" />
+          <span>#1 Rank</span>
         </button>
       </div>
 
@@ -486,6 +498,17 @@ export default function App() {
                   </span>
                 )}
               </button>
+
+              {/* #1 AI Platform Leaderboard tab */}
+              <button
+                onClick={() => setIsLeaderboardModalOpen(true)}
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                title="Aether Studio Ranked #1 Against Paid Alternatives (Bolt, Lovable, Cursor, Replit)"
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline font-bold">#1 Ranked (99.4)</span>
+                <span className="sm:hidden font-mono text-[10px]">#1</span>
+              </button>
             </div>
 
             {/* Quick Status / GitHub sync shortcut pill */}
@@ -562,6 +585,7 @@ export default function App() {
         isOpen={isBottomDockOpen}
         onToggle={() => setIsBottomDockOpen(!isBottomDockOpen)}
         onCommitAndSync={handleCommitAndSync}
+        onOpenLeaderboard={() => setIsLeaderboardModalOpen(true)}
         gitRepoName={githubSyncConfig.repoUrl}
         branch={githubSyncConfig.branch}
         commits={commits}
@@ -595,6 +619,11 @@ export default function App() {
       )}
 
       {/* Modals */}
+      <LeaderboardModal
+        isOpen={isLeaderboardModalOpen}
+        onClose={() => setIsLeaderboardModalOpen(false)}
+      />
+
       <GitHubSyncModal
         isOpen={isGitHubModalOpen}
         onClose={() => setIsGitHubModalOpen(false)}

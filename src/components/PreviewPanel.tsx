@@ -71,43 +71,55 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ app }) => {
         <div className="flex items-center bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 shrink-0">
           <button
             onClick={() => setDeviceMode("desktop")}
-            className={`p-1.5 rounded transition-colors cursor-pointer ${
-              deviceMode === "desktop" ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
+            className={`px-2 py-1 rounded transition-colors cursor-pointer text-xs flex items-center gap-1 ${
+              deviceMode === "desktop" ? "bg-neutral-800 text-cyan-400 font-semibold" : "text-neutral-400 hover:text-neutral-200"
             }`}
-            title="Desktop View (100%)"
+            title="Desktop View (Fluid / 100%)"
           >
             <Monitor className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Desktop</span>
           </button>
           <button
             onClick={() => setDeviceMode("tablet")}
-            className={`p-1.5 rounded transition-colors cursor-pointer ${
-              deviceMode === "tablet" ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
+            className={`px-2 py-1 rounded transition-colors cursor-pointer text-xs flex items-center gap-1 ${
+              deviceMode === "tablet" ? "bg-neutral-800 text-cyan-400 font-semibold" : "text-neutral-400 hover:text-neutral-200"
             }`}
             title="Tablet View (768px)"
           >
             <Tablet className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Tablet</span>
           </button>
           <button
             onClick={() => setDeviceMode("mobile")}
-            className={`p-1.5 rounded transition-colors cursor-pointer ${
-              deviceMode === "mobile" ? "bg-neutral-800 text-cyan-400" : "text-neutral-400 hover:text-neutral-200"
+            className={`px-2 py-1 rounded transition-colors cursor-pointer text-xs flex items-center gap-1 ${
+              deviceMode === "mobile" ? "bg-neutral-800 text-cyan-400 font-semibold" : "text-neutral-400 hover:text-neutral-200"
             }`}
             title="Mobile View (375px)"
           >
             <Smartphone className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mobile</span>
           </button>
         </div>
 
-        {/* URL Bar */}
+        {/* URL Bar & Sandbox Tag */}
         <div className="flex-1 max-w-md mx-1 sm:mx-3 min-w-[110px]">
           <div className="flex items-center gap-1.5 sm:gap-2 bg-neutral-900/90 border border-neutral-800 px-2 sm:px-3 py-1 rounded-md text-[10px] sm:text-[11px] font-mono text-neutral-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
             <span className="text-neutral-400 truncate">http://localhost:{app.port}/</span>
+            <span className="hidden xl:inline text-[9px] text-cyan-400/80 bg-cyan-950/60 px-1.5 py-0.2 rounded font-sans ml-auto">
+              Perp Corp AI
+            </span>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        {/* Token Cost Transparency & Action Controls */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-800/40 px-2 py-0.5 rounded">
+            <span>Cost: $0.00</span>
+            <span className="text-neutral-500">•</span>
+            <span className="text-neutral-400">Zero Paywall</span>
+          </div>
+
           <button
             onClick={handleRefresh}
             className={`p-1.5 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer ${
@@ -129,14 +141,14 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ app }) => {
         </div>
       </div>
 
-      {/* Sandbox Screen Canvas */}
-      <div className="flex-1 overflow-auto bg-[#07080c] p-2 sm:p-4 flex flex-col items-center justify-start min-h-0">
+      {/* Sandbox Screen Canvas with full scroll protection */}
+      <div className="flex-1 overflow-auto bg-[#07080c] p-2 sm:p-4 flex flex-col items-center justify-start min-h-0 w-full">
         <div
           className={`min-h-[420px] transition-all duration-300 shadow-2xl rounded-xl border border-neutral-800 overflow-hidden flex flex-col bg-[#090b10] ${
             deviceMode === "desktop"
-              ? "w-full min-w-[300px] flex-1"
+              ? "w-full max-w-full flex-1"
               : deviceMode === "tablet"
-              ? "w-[768px] max-w-none flex-1 shrink-0"
+              ? "w-[768px] max-w-full flex-1 shrink-0"
               : "w-[375px] max-w-full flex-1 shrink-0"
           }`}
         >

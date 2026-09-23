@@ -230,8 +230,8 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
   }, [previewFilesList, targetFilter, searchQuery]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 select-none">
-      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[94vh] sm:max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 select-none overflow-y-auto">
+      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[94vh] sm:max-h-[90vh] overflow-hidden my-auto">
         {/* Header */}
         <div className="p-3.5 sm:p-4 border-b border-neutral-800 flex items-center justify-between shrink-0 bg-[#0d0f17]">
           <div className="flex items-center gap-2.5">
@@ -939,13 +939,15 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
         )}
 
         {/* Footer */}
-        <div className="p-3 border-t border-neutral-800 bg-[#0d0f17] flex items-center justify-between text-xs shrink-0">
+        <div className="p-3 border-t border-neutral-800 bg-[#0d0f17] flex items-center justify-between text-xs shrink-0 flex-wrap gap-2">
           <div className="flex items-center gap-2 text-[11px] text-neutral-400">
             <span className={`w-2 h-2 rounded-full ${localConfig.enabled ? "bg-emerald-400" : "bg-neutral-600"}`} />
             <span>Target: <strong className="text-neutral-200 font-mono">{localConfig.branch || "main"}</strong> ({localConfig.enabled ? "Auto-Sync Active" : "Manual Sync"})</span>
+            <span className="hidden md:inline text-neutral-600">·</span>
+            <span className="hidden md:inline text-cyan-400/80">Perp Corp Media & AI Solutions (Jesse Lepota)</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={onClose}
               className="px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors cursor-pointer"

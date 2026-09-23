@@ -1,6 +1,6 @@
 {
   "name": "Aether Studio",
-  "description": "Next-generation neural AI app builder and software foundry with autonomous agent orchestration, real-time code synthesis, and multi-platform compilation.",
+  "description": "Aether Studio by Jesse Lepota at Perp Corp Media & AI Solutions - Ranked #1 AI software builder and foundry with Web, Windows (.exe), and Android (APK) multi-platform compilation.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

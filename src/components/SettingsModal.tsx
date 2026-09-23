@@ -31,8 +31,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none">
-      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none overflow-y-auto">
+      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden my-auto">
         {/* Header */}
         <div className="p-3.5 sm:p-4 border-b border-neutral-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -227,7 +227,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Footer Save */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-            <span className="text-[11px] text-neutral-500 font-mono">Aether Foundry v2.4.1 (Clean Build)</span>
+            <span className="text-[11px] text-neutral-400 font-mono">
+              Perp Corp Media & AI Solutions • <span className="text-cyan-400 font-semibold">Jesse Lepota</span>
+            </span>
             <div className="flex gap-2 justify-end">
               <button
                 type="button"

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Terminal, AlertCircle, ChevronUp, ChevronDown, CheckCircle2, Trash2 } from "lucide-react";
+import { Terminal, AlertCircle, ChevronUp, ChevronDown, CheckCircle2, Trash2, Trophy } from "lucide-react";
 import { WorkspaceCommit } from "../types";
 
 interface BottomDockProps {
   isOpen: boolean;
   onToggle: () => void;
   onCommitAndSync?: (message: string) => Promise<void>;
+  onOpenLeaderboard?: () => void;
   gitRepoName?: string;
   branch?: string;
   commits?: WorkspaceCommit[];
@@ -15,6 +16,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   isOpen, 
   onToggle,
   onCommitAndSync,
+  onOpenLeaderboard,
   gitRepoName,
   branch = "main",
   commits = [],
@@ -149,6 +151,25 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           >
             <span>Output</span>
           </button>
+
+          {onOpenLeaderboard && (
+            <button
+              onClick={onOpenLeaderboard}
+              className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer whitespace-nowrap"
+              title="Aether Studio Ranked #1 Worldwide vs Paid Alternatives"
+            >
+              <Trophy className="w-3 h-3 text-amber-400" />
+              <span>Rank #1 (99.4)</span>
+            </button>
+          )}
+        </div>
+
+        {/* Center / Right: Perp Corp Media & AI Solutions Branding */}
+        <div className="hidden lg:flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          <span>Perp Corp Media & AI Solutions</span>
+          <span className="text-neutral-600">·</span>
+          <span className="text-neutral-300 font-semibold">Jesse Lepota</span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">

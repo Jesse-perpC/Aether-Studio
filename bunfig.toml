@@ -1,0 +1,3 @@
+[install]
+# Prevent postinstall/lifecycle scripts from running and failing in minimal container environments
+ignore_scripts = true

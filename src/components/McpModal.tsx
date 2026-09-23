@@ -47,8 +47,8 @@ export const McpModal: React.FC<McpModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none">
-      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 select-none overflow-y-auto">
+      <div className="bg-[#0e111a] border border-neutral-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] overflow-hidden my-auto">
         {/* Header */}
         <div className="p-3.5 sm:p-4 border-b border-neutral-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -175,6 +175,19 @@ export const McpModal: React.FC<McpModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-neutral-800 bg-[#0d0f17] flex items-center justify-between text-xs shrink-0 flex-wrap gap-2">
+          <span className="text-[10px] text-neutral-400 font-mono">
+            Perp Corp Media & AI Solutions • <span className="text-cyan-400 font-semibold">Jesse Lepota</span>
+          </span>
+          <button
+            onClick={onClose}
+            className="px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors cursor-pointer ml-auto"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

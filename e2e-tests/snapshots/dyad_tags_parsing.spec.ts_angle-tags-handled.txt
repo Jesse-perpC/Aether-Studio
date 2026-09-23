@@ -1,2 +1,0 @@
-=== src/foo/bar.tsx ===
-// BEGINNING OF FILE
