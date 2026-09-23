@@ -5,6 +5,7 @@ import { PreviewPanel } from "./components/PreviewPanel";
 import { CodeEditorPanel } from "./components/CodeEditorPanel";
 import { PlanPanel } from "./components/PlanPanel";
 import { SecurityPanel } from "./components/SecurityPanel";
+import { TerminalPanel } from "./components/TerminalPanel";
 import { PromptLibraryModal } from "./components/PromptLibraryModal";
 import { McpModal } from "./components/McpModal";
 import { SettingsModal } from "./components/SettingsModal";
@@ -39,7 +40,8 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Trophy
+  Trophy,
+  Terminal as TerminalIcon
 } from "lucide-react";
 import { syncWorkspaceToGitHub } from "./utils/githubSyncService";
 
@@ -499,6 +501,21 @@ export default function App() {
                 )}
               </button>
 
+              <button
+                onClick={() => setPreviewTab("terminal")}
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                  previewTab === "terminal"
+                    ? "bg-neutral-800 text-cyan-400 font-semibold shadow-sm"
+                    : "text-neutral-400 hover:text-neutral-200"
+                }`}
+              >
+                <TerminalIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Terminal</span>
+                <span className="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800/60 px-1.5 py-0.2 rounded font-mono">
+                  CLI
+                </span>
+              </button>
+
               {/* #1 AI Platform Leaderboard tab */}
               <button
                 onClick={() => setIsLeaderboardModalOpen(true)}
@@ -574,6 +591,17 @@ export default function App() {
                 onRunAudit={() => {
                   handleSendMessage("Run deep static security audit across all files");
                 }}
+              />
+            )}
+            {previewTab === "terminal" && (
+              <TerminalPanel
+                app={activeApp}
+                onUpdateFile={handleUpdateFile}
+                onCommitChanges={handleCommitAndSync}
+                onOpenGitHubSync={() => setIsGitHubModalOpen(true)}
+                gitSyncStatus={githubSyncConfig.syncStatus}
+                gitRepoName={githubSyncConfig.repoUrl}
+                commits={commits}
               />
             )}
           </div>

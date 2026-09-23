@@ -2,7 +2,7 @@ export type ChatMode = "local-agent" | "build" | "ask" | "plan";
 
 export type ViewTab = "apps" | "templates" | "library" | "plugins" | "settings";
 
-export type PreviewTab = "preview" | "code" | "plan" | "security";
+export type PreviewTab = "preview" | "code" | "plan" | "security" | "terminal";
 
 export type DeviceMode = "desktop" | "tablet" | "mobile";
 

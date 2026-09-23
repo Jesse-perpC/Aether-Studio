@@ -54,13 +54,13 @@ export function generateDualWorkspaceStructure(app: AppRecord): DualWorkspaceFil
 
   files["package-lock.json"] = JSON.stringify(
     {
-      name: slug,
+      name: safeAppName,
       version: "1.0.0",
       lockfileVersion: 3,
       requires: true,
       packages: {
         "": {
-          name: slug,
+          name: safeAppName,
           version: "1.0.0",
           workspaces: ["web", "desktop", "mobile"],
         },
