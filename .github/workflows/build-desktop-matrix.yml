@@ -58,11 +58,11 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then
-            npm ci
+            npm ci || npm install --ignore-scripts --no-audit --no-fund
           else
-            npm install --ignore-scripts
-            npm rebuild dugite || true
+            npm install --ignore-scripts --no-audit --no-fund
           fi
+          npm rebuild dugite || true
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

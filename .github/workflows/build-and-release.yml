@@ -43,9 +43,9 @@ jobs:
       - name: Install Monorepo Dependencies
         run: |
           if [ -f package-lock.json ]; then
-            npm ci || npm install --ignore-scripts
+            npm ci || npm install --ignore-scripts --no-audit --no-fund
           else
-            npm install --ignore-scripts
+            npm install --ignore-scripts --no-audit --no-fund
           fi
         shell: bash
 
@@ -99,9 +99,9 @@ jobs:
       - name: Install Monorepo Dependencies
         run: |
           if [ -f package-lock.json ]; then
-            npm ci || npm install --ignore-scripts
+            npm ci || npm install --ignore-scripts --no-audit --no-fund
           else
-            npm install --ignore-scripts
+            npm install --ignore-scripts --no-audit --no-fund
           fi
         shell: bash
 
@@ -184,9 +184,9 @@ jobs:
       - name: Install Monorepo Dependencies
         run: |
           if [ -f package-lock.json ]; then
-            npm ci || npm install --ignore-scripts
+            npm ci || npm install --ignore-scripts --no-audit --no-fund
           else
-            npm install --ignore-scripts
+            npm install --ignore-scripts --no-audit --no-fund
           fi
           npm rebuild dugite || true
 

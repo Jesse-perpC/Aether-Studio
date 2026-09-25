@@ -1,21 +1,28 @@
-#!/bin/bash
-# npm-ci-retry.sh
-# Retry npm ci up to 3 times to handle intermittent EBUSY/EPERM errors on Windows.
-# These errors are caused by file locking from antivirus or indexing services.
+#!/usr/bin/env bash
+set -eo pipefail
 
-set -e
+echo "Running npm install with retry/fallback resilience..."
+max_attempts=3
+attempt=1
 
-MAX_ATTEMPTS=3
-RETRY_DELAY=10
+while [ $attempt -le $max_attempts ]; do
+  echo "Attempt $attempt of $max_attempts..."
+  if [ -f package-lock.json ]; then
+    if npm ci --no-audit --no-fund "$@"; then
+      echo "npm ci succeeded."
+      exit 0
+    fi
+  fi
 
-for i in $(seq 1 $MAX_ATTEMPTS); do
-  if npm ci --no-audit --no-fund --progress=false; then
+  if npm install --ignore-scripts --no-audit --no-fund "$@"; then
+    echo "npm install succeeded."
     exit 0
   fi
-  echo "npm ci attempt $i failed, retrying in ${RETRY_DELAY}s..."
-  sleep $RETRY_DELAY
-  rm -rf node_modules || true
+
+  echo "Attempt $attempt failed. Retrying in 5 seconds..."
+  sleep 5
+  attempt=$((attempt + 1))
 done
 
-echo "npm ci failed after $MAX_ATTEMPTS attempts"
+echo "Failed to install dependencies after $max_attempts attempts."
 exit 1
