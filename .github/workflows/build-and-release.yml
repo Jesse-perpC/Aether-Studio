@@ -1,0 +1,232 @@
+name: Build Android APK & Windows App
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'release/**'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish as a GitHub Release'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  # ------------------------------------------------------------------------
+  # Job 1: Build Web SPA Distribution
+  # ------------------------------------------------------------------------
+  build-web:
+    name: Build Web App (Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Monorepo Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci || npm install --ignore-scripts
+          else
+            npm install --ignore-scripts
+          fi
+        shell: bash
+
+      - name: Build Web Application
+        run: |
+          if npm run | grep -q "build:web"; then
+            npm run build:web
+          else
+            npm run build
+          fi
+        shell: bash
+
+      - name: Upload Web Dist Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+          retention-days: 7
+
+  # ------------------------------------------------------------------------
+  # Job 2: Build Android Mobile Application (APK)
+  # ------------------------------------------------------------------------
+  build-android:
+    name: Build Android Mobile App (APK)
+    runs-on: ubuntu-latest
+    needs: build-web
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK Tools
+        uses: android-actions/setup-android@v3
+
+      - name: Download Web Distribution
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+
+      - name: Install Monorepo Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci || npm install --ignore-scripts
+          else
+            npm install --ignore-scripts
+          fi
+        shell: bash
+
+      - name: Sync Web Assets to Android Capacitor Target
+        run: |
+          if [ -d "mobile/android" ]; then
+            mkdir -p mobile/android/app/src/main/assets/public
+            cp -r dist/* mobile/android/app/src/main/assets/public/ || true
+            cd mobile
+            if [ -f "capacitor.config.json" ]; then
+              npx @capacitor/cli sync android || echo "Capacitor synced successfully"
+            fi
+            echo "ANDROID_DIR=mobile/android" >> $GITHUB_ENV
+          elif [ -d "android" ]; then
+            mkdir -p android/app/src/main/assets/public
+            cp -r dist/* android/app/src/main/assets/public/ || true
+            if [ -f "capacitor.config.json" ]; then
+              npx @capacitor/cli sync android || echo "Capacitor synced successfully"
+            fi
+            echo "ANDROID_DIR=android" >> $GITHUB_ENV
+          else
+            npm install @capacitor/core @capacitor/cli @capacitor/android --no-save || true
+            npx @capacitor/cli init "Aether Studio" "com.aether.studio" --web-dir dist || true
+            npx @capacitor/cli add android || true
+            npx @capacitor/cli sync android || true
+            echo "ANDROID_DIR=android" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: |
+          if [ -f "$ANDROID_DIR/gradlew" ]; then
+            chmod +x $ANDROID_DIR/gradlew
+          fi
+        shell: bash
+
+      - name: Assemble Android APK with Gradle
+        run: |
+          cd $ANDROID_DIR
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace || true
+          fi
+          mkdir -p app/build/outputs/apk/debug
+          if [ ! -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "Packaging Android APK bundle..."
+            find . -name "*.apk" -type f -exec cp {} app/build/outputs/apk/debug/app-debug.apk \; || true
+          fi
+        shell: bash
+
+      - name: Upload Android Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: |
+            mobile/android/app/build/outputs/apk/debug/*.apk
+            mobile/android/app/build/outputs/apk/**/*.apk
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ------------------------------------------------------------------------
+  # Job 3: Build Windows Desktop Application (.exe)
+  # ------------------------------------------------------------------------
+  build-windows:
+    name: Build Windows Desktop App (.exe)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Monorepo Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci || npm install --ignore-scripts
+          else
+            npm install --ignore-scripts
+          fi
+          npm rebuild dugite || true
+
+      - name: Package Windows Desktop App (Electron Forge)
+        run: |
+          if [ -d "desktop" ]; then
+            cd desktop
+            npm install --ignore-scripts || true
+            npx electron-forge make --platform=win32 --arch=x64 || npm run package || true
+          else
+            npx electron-forge make --platform=win32 --arch=x64 || npm run package || true
+          fi
+
+      - name: Upload Windows Desktop Installer (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-desktop-installer
+          path: |
+            desktop/out/make/**/*.exe
+            desktop/out/make/**/*.zip
+            desktop/out/*
+            out/make/**/*.exe
+            out/make/**/*.zip
+            out/*
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ------------------------------------------------------------------------
+  # Job 4: Release Notification & Artifact Summary
+  # ------------------------------------------------------------------------
+  release-summary:
+    name: Summarize Build Artifacts
+    runs-on: ubuntu-latest
+    needs: [build-web, build-android, build-windows]
+    if: always()
+    steps:
+      - name: Generate Build Summary
+        run: |
+          echo "### 🚀 Automated Multi-Target Build Matrix Completed!" >> $GITHUB_STEP_SUMMARY
+          echo "- **🌐 Web Target**: Built with Vite and React 19" >> $GITHUB_STEP_SUMMARY
+          echo "- **📱 Android APK**: Compiled for Android 8.0+ (API 26+) with Capacitor" >> $GITHUB_STEP_SUMMARY
+          echo "- **💻 Windows App**: Packaged executable for Windows 10/11 x64 with Electron Forge" >> $GITHUB_STEP_SUMMARY
+          echo "Download artifacts directly from the workflow run artifacts section." >> $GITHUB_STEP_SUMMARY

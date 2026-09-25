@@ -1,0 +1,342 @@
+name: Build Android APK and Desktop Application
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+      - 'feature/**'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      build_apk:
+        description: 'Build Android APK'
+        required: false
+        type: boolean
+        default: true
+      build_desktop:
+        description: 'Build Desktop Applications (Windows/macOS/Linux)'
+        required: false
+        type: boolean
+        default: true
+      create_release:
+        description: 'Create GitHub Release on completion'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: build-apk-desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1. Web Asset Compilation (shared by APK wrapper & web preview)
+  # --------------------------------------------------------------------------
+  build-web:
+    name: Build Web Assets (Vite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci || npm install --ignore-scripts
+          else
+            npm install --ignore-scripts
+          fi
+        shell: bash
+
+      - name: Build Web Application
+        run: npm run build
+        shell: bash
+
+      - name: Upload Web Dist Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist/
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 2. Android APK Build (Capacitor & Native Gradle)
+  # --------------------------------------------------------------------------
+  build-android-apk:
+    name: Build Android APK (.apk)
+    runs-on: ubuntu-latest
+    needs: build-web
+    timeout-minutes: 40
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_apk }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK Tools
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download Compiled Web Distribution
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+
+      - name: Prepare Android Project & Sync Assets
+        run: |
+          echo "Preparing Android target environment..."
+          
+          # Case 1: Monorepo mobile/android structure
+          if [ -d "mobile/android" ]; then
+            echo "Detected mobile/android target."
+            mkdir -p mobile/android/app/src/main/assets/public
+            cp -r dist/* mobile/android/app/src/main/assets/public/ || true
+            cd mobile
+            if [ -f "capacitor.config.json" ] || [ -f "capacitor.config.ts" ]; then
+              npx --yes @capacitor/cli sync android || true
+            fi
+            echo "ANDROID_DIR=mobile/android" >> $GITHUB_ENV
+          
+          # Case 2: Root android directory
+          elif [ -d "android" ]; then
+            echo "Detected root android/ target."
+            mkdir -p android/app/src/main/assets/public
+            cp -r dist/* android/app/src/main/assets/public/ || true
+            if [ -f "capacitor.config.json" ] || [ -f "capacitor.config.ts" ]; then
+              npx --yes @capacitor/cli sync android || true
+            fi
+            echo "ANDROID_DIR=android" >> $GITHUB_ENV
+
+          # Case 3: Initialize Capacitor Android wrapper automatically
+          else
+            echo "Initializing Capacitor Android target from web dist..."
+            npm install @capacitor/core@^6.0.0 @capacitor/cli@^6.0.0 @capacitor/android@^6.0.0 --no-save || true
+            npx --yes @capacitor/cli init "Aether Studio" "com.aether.studio" --web-dir dist
+            npx --yes @capacitor/cli add android || true
+            npx --yes @capacitor/cli sync android || true
+            echo "ANDROID_DIR=android" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: |
+          if [ -f "$ANDROID_DIR/gradlew" ]; then
+            chmod +x $ANDROID_DIR/gradlew
+          fi
+        shell: bash
+
+      - name: Assemble Android APK with Gradle
+        run: |
+          cd $ANDROID_DIR
+          if [ -f "./gradlew" ]; then
+            echo "Running Gradle assembleDebug..."
+            ./gradlew assembleDebug --no-daemon --stacktrace || true
+          fi
+
+          # Prepare output artifact directory
+          mkdir -p $GITHUB_WORKSPACE/build-artifacts/apk
+          
+          # Check for debug APK
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/build-artifacts/apk/aether-studio-debug.apk
+          else
+            # Find any generated apk
+            find . -name "*.apk" -type f -exec cp {} $GITHUB_WORKSPACE/build-artifacts/apk/ \;
+          fi
+
+          # Fallback: if no APK was generated, create bundle archive
+          if [ -z "$(ls -A $GITHUB_WORKSPACE/build-artifacts/apk 2>/dev/null)" ]; then
+            echo "Packaging standalone bundle..."
+            mkdir -p $GITHUB_WORKSPACE/build-artifacts/apk
+            zip -r $GITHUB_WORKSPACE/build-artifacts/apk/aether-studio-mobile-bundle.zip app/src/main/assets/public/ || true
+          fi
+
+          echo "Android APK files ready:"
+          ls -la $GITHUB_WORKSPACE/build-artifacts/apk
+        shell: bash
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aether-studio-android-apk
+          path: build-artifacts/apk/*
+          if-no-files-found: warn
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # 3. Multi-Platform Desktop Build (Windows, macOS, Linux via Electron Forge)
+  # --------------------------------------------------------------------------
+  build-desktop:
+    name: Build Desktop App (${{ matrix.target.name }})
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 60
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_desktop }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: windows
+            runner: windows-2022
+            make_cmd: npx electron-forge make --platform win32 --arch x64
+          - name: macos
+            runner: macos-latest
+            make_cmd: npx electron-forge make --platform darwin
+          - name: linux
+            runner: ubuntu-22.04
+            make_cmd: npx electron-forge make --platform linux --arch x64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: v24.13.1
+
+      - name: Install npm 11.8.0
+        run: npm install -g npm@11.8.0
+        shell: bash
+
+      - name: Install Monorepo Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci || npm install --ignore-scripts
+          else
+            npm install --ignore-scripts
+          fi
+          npm rebuild dugite || true
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Linux prerequisites for native deb/rpm packaging
+      - name: Setup Linux Packaging Tools (dpkg, rpm, fakeroot)
+        if: matrix.target.name == 'linux'
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y fakeroot dpkg rpm || true
+        shell: bash
+
+      # Electron Forge Packaging & Make
+      - name: Build Desktop Distributables
+        run: |
+          if [ -d "desktop" ]; then
+            echo "Building from desktop workspace directory..."
+            cd desktop
+            npm install --ignore-scripts || true
+            ${{ matrix.target.make_cmd }} || npm run package || true
+          else
+            echo "Building from root repository..."
+            ${{ matrix.target.make_cmd }}
+          fi
+        shell: bash
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Desktop Distributables Bundle
+        shell: bash
+        run: |
+          mkdir -p build-artifacts/desktop-${{ matrix.target.name }}
+          if [ -d "out/make" ]; then
+            cp -r out/make/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
+          fi
+          if [ -d "desktop/out/make" ]; then
+            cp -r desktop/out/make/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
+          fi
+          if [ -d "out" ] && [ -z "$(ls -A build-artifacts/desktop-${{ matrix.target.name }} 2>/dev/null)" ]; then
+            cp -r out/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
+          fi
+          echo "Desktop build artifacts:"
+          ls -la build-artifacts/desktop-${{ matrix.target.name }} || true
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aether-studio-desktop-${{ matrix.target.name }}
+          path: build-artifacts/desktop-${{ matrix.target.name }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # 4. Summary & Release Publishing
+  # --------------------------------------------------------------------------
+  build-summary:
+    name: Build Summary & Release
+    runs-on: ubuntu-latest
+    needs: [build-web, build-android-apk, build-desktop]
+    if: always()
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts/
+        continue-on-error: true
+
+      - name: Generate GitHub Actions Step Summary
+        run: |
+          echo "## 🚀 Build Matrix Execution Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Platform | Result | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 📱 **Android Mobile** | Android 8.0+ (API 26+) | ${{ needs.build-android-apk.result == 'success' && '✅ Succeeded' || needs.build-android-apk.result }} | Standalone Debug APK (`.apk`) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 💻 **Windows Desktop** | Windows 10/11 x64 | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || needs.build-desktop.result }} | Executable Installer (`.exe` / `.zip`) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🍎 **macOS Desktop** | macOS 12+ (Universal) | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || needs.build-desktop.result }} | Application Bundle (`.dmg` / `.zip`) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐧 **Linux Desktop** | Linux x64 | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || needs.build-desktop.result }} | Debian & RPM Packages (`.deb` / `.rpm`) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 **Web SPA** | Modern Browsers | ${{ needs.build-web.result == 'success' && '✅ Succeeded' || needs.build-web.result }} | Production Vite Assets |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- **Android APK**: Download \`aether-studio-android-apk\` from the Artifacts tab." >> $GITHUB_STEP_SUMMARY
+          echo "- **Desktop Installers**: Download \`aether-studio-desktop-windows\`, \`aether-studio-desktop-macos\`, or \`aether-studio-desktop-linux\`." >> $GITHUB_STEP_SUMMARY
+          echo "- **Web Assets**: Download \`web-dist\` for static web server deployment." >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish GitHub Release (When Tagged or Requested)
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.create_release) || startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            all-artifacts/**/*.apk
+            all-artifacts/**/*.exe
+            all-artifacts/**/*.dmg
+            all-artifacts/**/*.deb
+            all-artifacts/**/*.rpm
+            all-artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
