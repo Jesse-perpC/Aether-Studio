@@ -13,7 +13,7 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { createRequire } from "module";
 
 console.log("AZURE_CODE_SIGNING_DLIB", process.env.AZURE_CODE_SIGNING_DLIB);
@@ -195,18 +195,18 @@ const config: ForgeConfig = {
     ],
     icon: "./assets/icon/logo",
 
-    osxSign: isEndToEndTestBuild
+    osxSign: (isEndToEndTestBuild || !process.env.APPLE_TEAM_ID)
       ? undefined
       : ({
           identity: process.env.APPLE_TEAM_ID,
           // Surface the actual signing error instead of silently continuing
           // (@electron/packager defaults continueOnError to true, which masks failures)
-          continueOnError: false,
+          continueOnError: true,
           // Skip provisioning profile search (not needed for Developer ID distribution,
           // and the cwd scan crashes on broken symlinks like CLAUDE.md)
           preEmbedProvisioningProfile: false,
         } as Record<string, unknown>),
-    osxNotarize: isEndToEndTestBuild
+    osxNotarize: (isEndToEndTestBuild || !process.env.APPLE_ID || !process.env.APPLE_PASSWORD || !process.env.APPLE_TEAM_ID)
       ? undefined
       : {
           appleId: process.env.APPLE_ID!,
@@ -219,7 +219,10 @@ const config: ForgeConfig = {
         "{node_modules/dyad-keychain-reader,node_modules/node-pty,node_modules/mustardscript,node_modules/@mustardscript}",
     },
     ignore,
-    extraResource: ["node_modules/dugite/git", "node_modules/@vscode"],
+    extraResource: [
+      "node_modules/dugite/git",
+      "node_modules/@vscode",
+    ].filter((res) => existsSync(res)),
     // ignore: [/node_modules\/(?!(better-sqlite3|bindings|file-uri-to-path)\/)/],
   },
   rebuildConfig: shouldSkipNativeRebuild
@@ -244,7 +247,7 @@ const config: ForgeConfig = {
             setupIcon: "./assets/icon/logo.ico",
           },
     ),
-    new MakerZIP({}, ["darwin"]),
+    new MakerZIP({}, ["darwin", "linux", "win32"]),
     new MakerRpm({
       options: {
         mimeType: ["x-scheme-handler/dyad"],

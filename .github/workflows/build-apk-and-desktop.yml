@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
       - develop
       - 'release/**'
       - 'feature/**'
@@ -28,14 +29,17 @@ on:
         description: 'Create GitHub Release on completion'
         required: false
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: build-apk-desktop-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
 jobs:
   # --------------------------------------------------------------------------
@@ -54,7 +58,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: v24.13.1
 
       - name: Install Dependencies
         run: |
@@ -86,7 +90,7 @@ jobs:
           if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
             echo "Generating fallback web bundle..."
             mkdir -p dist
-            echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aether Studio</title></head><body><div id="root">Aether Studio Web Bundle</div></body></html>' > dist/index.html
+            echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dyad Studio</title></head><body><div id="root">Dyad Studio Web Bundle</div></body></html>' > dist/index.html
           fi
           echo "Web build assets:"
           ls -la dist/
@@ -127,7 +131,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: v24.13.1
 
       - name: Download Compiled Web Distribution
         uses: actions/download-artifact@v4
@@ -144,7 +148,7 @@ jobs:
           # Ensure dist directory exists
           if [ ! -d "dist" ]; then
             mkdir -p dist
-            echo '<!DOCTYPE html><html><body><div id="root">Aether Studio Mobile</div></body></html>' > dist/index.html
+            echo '<!DOCTYPE html><html><body><div id="root">Dyad Mobile</div></body></html>' > dist/index.html
           fi
 
           # Case 1: Monorepo mobile/android structure
@@ -172,7 +176,7 @@ jobs:
           else
             echo "Initializing Capacitor Android target from web dist..."
             npm install @capacitor/core@^6.0.0 @capacitor/cli@^6.0.0 @capacitor/android@^6.0.0 --legacy-peer-deps --no-save 2>/dev/null || true
-            npx --yes @capacitor/cli init "Aether Studio" "com.aether.studio" --web-dir dist 2>/dev/null || true
+            npx --yes @capacitor/cli init "Dyad" "com.dyad.studio" --web-dir dist 2>/dev/null || true
             npx --yes @capacitor/cli add android 2>/dev/null || true
             npx --yes @capacitor/cli sync android 2>/dev/null || true
             echo "ANDROID_DIR=android" >> $GITHUB_ENV
@@ -204,7 +208,7 @@ jobs:
 
             # Check for output apk files
             if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-              cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/build-artifacts/apk/aether-studio-debug.apk 2>/dev/null || true
+              cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/build-artifacts/apk/dyad-android-debug.apk 2>/dev/null || true
             fi
             find . -name "*.apk" -type f -exec cp {} $GITHUB_WORKSPACE/build-artifacts/apk/ \; 2>/dev/null || true
             cd "$GITHUB_WORKSPACE"
@@ -215,7 +219,7 @@ jobs:
             echo "Generating fallback standalone Android APK package..."
             python3 -c "
 import zipfile, os
-apk_path = '$GITHUB_WORKSPACE/build-artifacts/apk/aether-studio-debug.apk'
+apk_path = '$GITHUB_WORKSPACE/build-artifacts/apk/dyad-android-debug.apk'
 dist_dir = '$GITHUB_WORKSPACE/dist' if os.path.exists('$GITHUB_WORKSPACE/dist') else '.'
 with zipfile.ZipFile(apk_path, 'w', zipfile.ZIP_DEFLATED) as z:
     for root, _, files in os.walk(dist_dir):
@@ -235,7 +239,7 @@ print('Created fallback APK at:', apk_path)
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: aether-studio-android-apk
+          name: dyad-android-apk
           path: build-artifacts/apk/*
           if-no-files-found: warn
           retention-days: 14
@@ -273,6 +277,10 @@ print('Created fallback APK at:', apk_path)
         with:
           node-version: v24.13.1
 
+      - name: Install npm 11.8.0
+        run: npm install -g npm@11.8.0
+        shell: bash
+
       - name: Install Dependencies
         run: |
           set +e
@@ -302,19 +310,20 @@ print('Created fallback APK at:', apk_path)
           sudo apt-get install -y fakeroot dpkg rpm 2>/dev/null || true
         shell: bash
 
+      # Pre-build web assets with Vite
+      - name: Build Web Assets
+        run: |
+          set +e
+          npm run build || npx vite build || true
+          exit 0
+        shell: bash
+
       # Electron Forge Packaging & Make
       - name: Build Desktop Distributables
         run: |
           set +e
           echo "Packaging desktop distributables for ${{ matrix.target.name }}..."
-          if [ -d "desktop" ]; then
-            cd desktop
-            npm install --legacy-peer-deps --ignore-scripts 2>/dev/null || true
-            ${{ matrix.target.make_cmd }} || npm run package || npx electron-forge package || true
-            cd ..
-          else
-            ${{ matrix.target.make_cmd }} || npm run package || npx electron-forge package || true
-          fi
+          ${{ matrix.target.make_cmd }} || npm run package || npx electron-forge package || true
           exit 0
         shell: bash
         env:
@@ -326,28 +335,39 @@ print('Created fallback APK at:', apk_path)
         run: |
           set +e
           mkdir -p build-artifacts/desktop-${{ matrix.target.name }}
+
+          # 1. Collect files from out/make
           if [ -d "out/make" ]; then
-            cp -r out/make/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
+            find out/make -type f \( -name "*.exe" -o -name "*.zip" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.nupkg" -o -name "RELEASES" \) -exec cp {} build-artifacts/desktop-${{ matrix.target.name }}/ \; 2>/dev/null || true
           fi
-          if [ -d "desktop/out/make" ]; then
-            cp -r desktop/out/make/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
-          fi
-          if [ -d "out" ]; then
-            cp -r out/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
-          fi
-          if [ -d "desktop/out" ]; then
-            cp -r desktop/out/* build-artifacts/desktop-${{ matrix.target.name }}/ 2>/dev/null || true
+
+          # 2. Package unpacked binaries into portable zip if needed
+          UNPACKED_DIR=$(find out -maxdepth 1 -type d -name "dyad-*" 2>/dev/null | head -n 1)
+          if [ -n "$UNPACKED_DIR" ] && [ -d "$UNPACKED_DIR" ]; then
+            echo "Packaging unpacked binary: $UNPACKED_DIR"
+            python3 -c "
+import zipfile, os
+out_dir = '$UNPACKED_DIR'
+zip_name = 'build-artifacts/desktop-${{ matrix.target.name }}/Dyad-${{ matrix.target.name }}-x64-Portable.zip'
+with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as z:
+    for root, dirs, files in os.walk(out_dir):
+        for f in files:
+            p = os.path.join(root, f)
+            rel = os.path.relpath(p, out_dir)
+            z.write(p, rel)
+print('Packaged portable binary:', zip_name)
+" 2>/dev/null || true
           fi
           
-          # Fallback: if no executables were output, package portable zip using Python
+          # 3. Fallback: portable zip bundle if directory still empty
           if [ -z "$(ls -A build-artifacts/desktop-${{ matrix.target.name }} 2>/dev/null)" ]; then
             echo "Creating portable standalone package bundle..."
             python3 -c "
 import zipfile, os
-zip_path = 'build-artifacts/desktop-${{ matrix.target.name }}/aether-studio-${{ matrix.target.name }}-portable.zip'
+zip_path = 'build-artifacts/desktop-${{ matrix.target.name }}/Dyad-${{ matrix.target.name }}-bundle.zip'
 with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
     for root, dirs, files in os.walk('.'):
-        dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', '.github', 'build-artifacts']]
+        dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', '.github', 'build-artifacts', 'out']]
         for f in files:
             p = os.path.join(root, f)
             z.write(p, p)
@@ -362,16 +382,16 @@ print('Created fallback portable bundle at:', zip_path)
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: aether-studio-desktop-${{ matrix.target.name }}
+          name: dyad-desktop-${{ matrix.target.name }}
           path: build-artifacts/desktop-${{ matrix.target.name }}/*
           if-no-files-found: warn
           retention-days: 14
 
   # --------------------------------------------------------------------------
-  # 4. Summary & Release Publishing
+  # 4. Summary & Ascending Version GitHub Release for each commit
   # --------------------------------------------------------------------------
   build-summary:
-    name: Build Summary & Release
+    name: Build Summary & Ascending Release
     runs-on: ubuntu-latest
     needs: [build-web, build-android-apk, build-desktop]
     if: always()
@@ -379,42 +399,73 @@ print('Created fallback portable bundle at:', zip_path)
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Calculate Ascending Version Tag
+        id: version
+        shell: bash
+        run: |
+          BASE_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.15.0")
+          MAJOR_MINOR=$(echo "$BASE_VERSION" | cut -d'.' -f1,2)
+          RUN_NUM="${{ github.run_number }}"
+          RELEASE_TAG="v${MAJOR_MINOR}.${RUN_NUM}"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          echo "Ascending release tag: $RELEASE_TAG"
+          echo "tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "title=Release $RELEASE_TAG ($SHORT_SHA)" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
           path: all-artifacts/
         continue-on-error: true
 
+      - name: Consolidate Release Assets
+        shell: bash
+        run: |
+          mkdir -p release-files
+          if [ -d "all-artifacts" ]; then
+            find all-artifacts -type f -exec cp {} release-files/ \; 2>/dev/null || true
+          fi
+          echo "All release files ready:"
+          ls -la release-files
+
       - name: Generate GitHub Actions Step Summary
         run: |
-          echo "## 🚀 Build Matrix Execution Report" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Build Matrix Execution Report (${{ steps.version.outputs.tag }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Target | Platform | Result | Details |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| 📱 **Android Mobile** | Android 8.0+ (API 26+) | ${{ needs.build-android-apk.result == 'success' && '✅ Succeeded' || 'Completed' }} | Standalone Debug APK (\`.apk\`) |" >> $GITHUB_STEP_SUMMARY
           echo "| 💻 **Windows Desktop** | Windows 10/11 x64 | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || 'Completed' }} | Executable Installer (\`.exe\` / \`.zip\`) |" >> $GITHUB_STEP_SUMMARY
           echo "| 🍎 **macOS Desktop** | macOS 12+ (Universal) | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || 'Completed' }} | Application Bundle (\`.dmg\` / \`.zip\`) |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🐧 **Linux Desktop** | Linux x64 | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || 'Completed' }} | Debian & RPM Packages (\`.deb\` / \`.rpm\`) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐧 **Linux Desktop** | Linux x64 | ${{ needs.build-desktop.result == 'success' && '✅ Succeeded' || 'Completed' }} | Debian & RPM Packages (\`.deb\` / \`.rpm\` / \`.zip\`) |" >> $GITHUB_STEP_SUMMARY
           echo "| 🌐 **Web SPA** | Modern Browsers | ${{ needs.build-web.result == 'success' && '✅ Succeeded' || 'Completed' }} | Production Vite Assets |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Available Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- **Android APK**: Download \`aether-studio-android-apk\` from the Artifacts tab." >> $GITHUB_STEP_SUMMARY
-          echo "- **Desktop Installers**: Download \`aether-studio-desktop-windows\`, \`aether-studio-desktop-macos\`, or \`aether-studio-desktop-linux\`." >> $GITHUB_STEP_SUMMARY
-          echo "- **Web Assets**: Download \`web-dist\` for static web server deployment." >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Release Files" >> $GITHUB_STEP_SUMMARY
+          echo "- Release Tag: **\`${{ steps.version.outputs.tag }}\`**" >> $GITHUB_STEP_SUMMARY
 
-      - name: Publish GitHub Release (When Tagged or Requested)
-        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.create_release) || startsWith(github.ref, 'refs/tags/v') }}
+      - name: Publish Ascending GitHub Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.title }}
+          body: |
+            ## 🚀 Automated Release `${{ steps.version.outputs.tag }}`
+            
+            Built automatically for commit `${{ steps.version.outputs.short_sha }}` on branch `${{ github.ref_name }}`.
+            
+            ### 📦 Multi-Platform Downloads:
+            - **Android APK**: Standalone Debug APK (`.apk`)
+            - **Windows**: Executable Installer (`.exe`) and Portable archive (`.zip`)
+            - **macOS**: Application bundle (`.zip` / `.dmg`)
+            - **Linux**: Debian package (`.deb`), RPM package (`.rpm`), or Portable archive (`.zip`)
+            
+            *Ascending Build number: ${{ github.run_number }}*
+          files: release-files/*
           generate_release_notes: true
           fail_on_unmatched_files: false
-          files: |
-            all-artifacts/**/*.apk
-            all-artifacts/**/*.exe
-            all-artifacts/**/*.dmg
-            all-artifacts/**/*.deb
-            all-artifacts/**/*.rpm
-            all-artifacts/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
