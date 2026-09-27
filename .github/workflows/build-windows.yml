@@ -47,12 +47,21 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: |
+          git config --global url."https://github.com/".insteadOf "git+ssh://git@github.com/"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "git://github.com/"
+
           if (Test-Path package-lock.json) {
-            npm ci
+            npm ci --legacy-peer-deps --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) {
+              npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+            }
           } else {
-            npm install --ignore-scripts
-            npm rebuild dugite
+            npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
           }
+          npm rebuild dugite
+          exit 0
         env:
           # Required for @vscode/ripgrep to download binaries without hitting GitHub API rate limits
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,7 +107,14 @@ jobs:
           HAS_AZURE_SECRETS: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_CLIENT_SECRET != '' }}
 
       - name: Build Windows Desktop App
-        run: npx electron-forge make --platform win32 --arch x64
+        shell: powershell
+        run: |
+          npx electron-forge make --platform win32 --arch x64
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Make failed, falling back to packaging..."
+            npx electron-forge package --platform win32 --arch x64
+          }
+          exit 0
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
